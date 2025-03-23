@@ -8,14 +8,14 @@ entity uart_rx is
 		stop_ticks: integer := 16
 	);
 	Port(
-		clk:		in  std_logic;
-		rst:		in  std_logic;
-		parity_ctrl:	in  std_logic;
-		rx:		in  std_logic;
-		s_tick:		in  std_logic;
-		rx_done:	out std_logic;
-		parity_error:	out std_logic;
-		data_out:	out std_logic_vector(data_bits-1 downto 0)
+		clk:		  in  std_logic;
+		rst:		  in  std_logic;
+		parity_ctrl:  in  std_logic;
+		rx:			  in  std_logic;
+		s_tick:		  in  std_logic;
+		rx_done:	  out std_logic;
+		parity_error: out std_logic;
+		data_out:	  out std_logic_vector(data_bits-1 downto 0)
 	);
 end uart_rx;
 
@@ -24,10 +24,10 @@ architecture Behavioral of uart_rx is
 	type state_type is (idle, start, data, parity, stop);
 	signal state_reg, state_next: state_type;
 
-	signal s_reg, s_next:  unsigned(3 downto 0) := (others => '0');				--holds s_tick count
-	signal n_reg, n_next:  unsigned(2 downto 0) := (others => '0');				--holds bit count
-	signal b_reg, b_next:  std_logic_vector(data_bits-1 downto 0) := (others => '0');	--holds data_out
-	signal p_reg, p_next:  std_logic;							--holds parity bit
+	signal s_reg, s_next: unsigned(3 downto 0) := (others => '0');					 --holds s_tick count
+	signal n_reg, n_next: unsigned(2 downto 0) := (others => '0');					 --holds bit count
+	signal b_reg, b_next: std_logic_vector(data_bits-1 downto 0) := (others => '0'); --holds data_out
+	signal p_reg, p_next: std_logic;												 --holds parity bit
 
 begin
 
@@ -36,10 +36,10 @@ begin
 	begin
 		if(rst = '1') then
 			state_reg <= idle;
-			s_reg	 <= (others => '0');
-			n_reg	 <= (others => '0');
-			b_reg	 <= (others => '0');
-			p_reg	 <= '0';
+			s_reg	  <= (others => '0');
+			n_reg	  <= (others => '0');
+			b_reg	  <= (others => '0');
+			p_reg	  <= '0';
 		elsif rising_edge(clk) then
 			state_reg <= state_next;
 			s_reg	 <= s_next;
@@ -75,11 +75,11 @@ begin
 				if (s_tick = '1') then
 					if (s_reg = 7) then
 						state_next <= data;
-						s_next	 <= (others => '0');
-						n_next	 <= (others => '0');
-						p_next	 <= '0';
+						s_next	   <= (others => '0');
+						n_next	   <= (others => '0');
+						p_next	   <= '0';
 					else
-						s_next <= s_reg + 1;
+						s_next	   <= s_reg + 1;
 					end if;
 				end if;
 

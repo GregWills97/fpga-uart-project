@@ -4,13 +4,13 @@ use IEEE.NUMERIC_STD.ALL;
 
 --Clock on Zybo board is 125 MHz
 --Max_pulse needs to be 16 times the frequency of the baud rate (115200 baud)
---(125 Mhz) / (115200 * 16) = 678.168, so M needs to be 679
---to hold that count r_reg needs 10 bits so N goes to 10
+--(125 Mhz) / (115200 * 16) = 67.8168, so M needs to be 68
+--to hold that count r_reg needs 7 bits
 
 entity BaudGenerator is
 	Generic(
-		N: integer := 10;
-		M: integer := 679
+		N: integer := 7;
+		M: integer := 68
 	);
 	Port(
 		clk:	   in  std_logic;

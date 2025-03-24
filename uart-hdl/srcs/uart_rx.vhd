@@ -4,8 +4,8 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity uart_rx is
 	Generic(
-		data_bits:  integer := 8;
-		stop_ticks: integer := 16
+		DATA_BITS:  integer := 8;
+		STOP_TICKS: integer := 16
 	);
 	Port(
 		clk:		  in  std_logic;
@@ -15,7 +15,7 @@ entity uart_rx is
 		s_tick:		  in  std_logic;
 		rx_done:	  out std_logic;
 		parity_error: out std_logic;
-		data_out:	  out std_logic_vector(data_bits-1 downto 0)
+		data_out:	  out std_logic_vector(DATA_BITS-1 downto 0)
 	);
 end uart_rx;
 
@@ -26,8 +26,8 @@ architecture Behavioral of uart_rx is
 
 	signal s_reg, s_next: unsigned(3 downto 0) := (others => '0');					 --holds s_tick count
 	signal n_reg, n_next: unsigned(2 downto 0) := (others => '0');					 --holds bit count
-	signal b_reg, b_next: std_logic_vector(data_bits-1 downto 0) := (others => '0'); --holds data_out
-	signal p_reg, p_next: std_logic;												 --holds parity bit
+	signal b_reg, b_next: std_logic_vector(DATA_BITS-1 downto 0) := (others => '0'); --holds data_out
+	signal p_reg, p_next: std_logic := '0';											 --holds parity bit
 
 begin
 
@@ -87,9 +87,9 @@ begin
 				if (s_tick = '1') then
 					if (s_reg = 15) then
 						s_next <= (others => '0');
-						b_next <= rx & b_reg(data_bits-1 downto 1);
+						b_next <= rx & b_reg(DATA_BITS-1 downto 1);
 						p_next <= rx XOR p_reg;
-						if(n_reg = (data_bits - 1)) then
+						if(n_reg = (DATA_BITS - 1)) then
 							if(parity_ctrl = '1') then
 								state_next <= parity;
 							else
@@ -116,7 +116,7 @@ begin
 
 			when stop =>
 				if (s_tick = '1') then
-					if (s_reg = (stop_ticks - 1)) then
+					if (s_reg = (STOP_TICKS - 1)) then
 						state_next <= idle;
 						rx_done <= '1';
 					else

@@ -2,23 +2,19 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-entity tx_tb is
-end tx_tb;
+entity uart_tx_tb is
+end uart_tx_tb;
 
-architecture Behavioral of tx_tb is
+architecture Behavioral of uart_tx_tb is
 
-	signal data_bits:  integer := 8;
-	signal stop_ticks: integer := 16;
-	signal N: integer := 10;
-	signal M: integer := 814;
 	signal clk, rst, tx_start, s_tick, tx, tx_done, parity_ctrl: std_logic;
-	signal data_in: std_logic_vector(data_bits-1 downto 0);
+	signal data_in: std_logic_vector(7 downto 0);
 	signal clk_period: time := 8 ns; --clk 125 MHz
 
 begin
 
 	baud_gen: entity work.BaudGenerator
-	Generic map(N => N, M => M)
+	Generic map(N => 7, M => 68) --generate baud of 115200
 	Port map(
 			clk => clk,
 			rst => rst,
@@ -26,17 +22,17 @@ begin
 			q => open
 	);
 
-	tx_tb: entity work.uart_tx
-	Generic map(data_bits => data_bits, stop_ticks => stop_ticks)
+	tx_uut: entity work.uart_tx
+	Generic map(DATA_BITS => 8, STOP_TICKS => 16)
 	Port map(
-			clk		=> clk,
-			rst		=> rst,
+			clk			=> clk,
+			rst			=> rst,
 			parity_ctrl	=> parity_ctrl,
 			tx_start	=> tx_start,
 			s_tick		=> s_tick,
 			data_in		=> data_in,
 			tx_done		=> tx_done,
-			tx		=> tx
+			tx			=> tx
 	);
 
 	rst <= '0';
@@ -54,6 +50,8 @@ begin
 	begin
 		parity_ctrl <= '1';
 		data_in <= x"55";
+		tx_start <= '0';
+		wait for 16 us;
 		tx_start <= '1';
 		wait for 20 ns;
 		tx_start <= '0';

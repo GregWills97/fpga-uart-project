@@ -13,10 +13,10 @@ entity BaudGenerator is
 		M: integer := 679
 	);
 	Port(
-		clk:	  in  std_logic;
-		rst:	  in  std_logic;
-		max_tick: out std_logic;
-		q:		  out std_logic_vector(N-1 downto 0)
+		clk:	   in  std_logic;
+		rst:	   in  std_logic;
+		max_tick:  out std_logic;
+		q:		   out std_logic_vector(N-1 downto 0)
 	);
 end BaudGenerator;
 

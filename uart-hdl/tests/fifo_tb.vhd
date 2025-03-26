@@ -54,7 +54,7 @@ begin
 			wait for clk_period;
 		end loop;
 
-		for i in 0 to 5 loop
+		for i in 0 to 10 loop
 			wr <= '1';
 			d_in <= std_logic_vector(count);
 			wait for clk_period;
@@ -63,6 +63,12 @@ begin
 			count := count + 1;
 		end loop;
 
+		for i in 0 to 31 loop
+			rd <= '1';
+			wait for clk_period;
+			rd <= '0';
+			wait for clk_period;
+		end loop;
 		finished <= '1';
 		wait;
 	end process;

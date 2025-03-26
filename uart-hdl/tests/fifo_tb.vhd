@@ -34,15 +34,17 @@ begin
 	clk <= not clk after clk_period/2 when finished /= '1' else '0';
 
 	process
+		variable count: unsigned(7 downto 0) := (others => '0');
 	begin
 		wait for clk_period / 2;
 
-		d_in <= x"FF";
 		for i in 0 to 31 loop
 			wr <= '1';
+			d_in <= std_logic_vector(count);
 			wait for clk_period;
 			wr <= '0';
 			wait for clk_period;
+			count := count + 1;
 		end loop;
 
 		for i in 0 to 10 loop
@@ -54,9 +56,11 @@ begin
 
 		for i in 0 to 5 loop
 			wr <= '1';
+			d_in <= std_logic_vector(count);
 			wait for clk_period;
 			wr <= '0';
 			wait for clk_period;
+			count := count + 1;
 		end loop;
 
 		finished <= '1';

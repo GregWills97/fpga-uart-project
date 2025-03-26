@@ -15,18 +15,10 @@ architecture Behavioral of uart_tx_tb is
 
 	procedure send_uart_byte (
 				data: in std_logic_vector(7 downto 0);
-				parity: in boolean;
 				signal din: out std_logic_vector(7 downto 0);
-				signal par_ctrl: out std_logic;
 				signal start: out std_logic
 		) is
 	begin
-			if parity = true then
-					par_ctrl <= '1';
-			else
-					par_ctrl <= '0';
-			end if;
-
 			din <= data;
 			wait for 2 * baud_rate;
 
@@ -36,6 +28,7 @@ architecture Behavioral of uart_tx_tb is
 			start <= '0';
 			wait for baud_rate * 10;
 	end send_uart_byte;
+
 begin
 
 	baud_gen: entity work.BaudGenerator
@@ -69,10 +62,12 @@ begin
 	begin
 
 		--send with parity
-		send_uart_byte(x"55", true, data_in, parity_ctrl, tx_start);
+		parity_ctrl <= '1';
+		send_uart_byte(x"55", data_in, tx_start);
 
 		--send without parity
-		send_uart_byte(x"55", false, data_in, parity_ctrl, tx_start);
+		parity_ctrl <= '0';
+		send_uart_byte(x"55", data_in, tx_start);
 		wait for baud_rate;
 
 		finished <= '1';

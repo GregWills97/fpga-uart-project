@@ -16,20 +16,35 @@ architecture Behavioral of uart_rx_tb is
 	procedure receive_uart_byte (
 				signal par_ctrl: in std_logic;
 				data_in: in std_logic_vector(7 downto 0);
-				parity_bit: in std_logic;
+				gen_err: in boolean;
 				signal tx_line: out std_logic
 		) is
+			variable parity_bit: std_logic;
 	begin
+		parity_bit := '0';
+
+		--start bit
 		tx_line <= '0';
 		wait for baud_rate;
+
+		-- data bits
 		for i in 0 to 7 loop
+				parity_bit := parity_bit XOR data_in(i);
 				tx_line <= data_in(i);
 				wait for baud_rate;
 		end loop;
+
+		--if parity enabled send parity bit
 		if par_ctrl = '1' then
-				tx_line <= parity_bit;
+				if gen_err = false then
+						tx_line <= parity_bit;
+				else
+						tx_line <= parity_bit XOR '1';
+				end if;
 				wait for baud_rate;
 		end if;
+
+		--stop bit
 		tx_line <= '1';
 		wait for 2 * baud_rate;
 	end receive_uart_byte;
@@ -71,16 +86,16 @@ begin
 		wait for baud_rate;
 
 		--0x55 with correct parity
-		receive_uart_byte(parity_ctrl, x"55", '0', rx);
+		receive_uart_byte(parity_ctrl, x"AA", false, rx);
 
 		--0x55 with incorrect parity
-		receive_uart_byte(parity_ctrl, x"55", '1', rx);
+		receive_uart_byte(parity_ctrl, x"77", true, rx);
 
 		--0x55 without parity
 		parity_ctrl <= '0';
-		receive_uart_byte(parity_ctrl, x"55", '0', rx);
-
+		receive_uart_byte(parity_ctrl, x"55", false, rx);
 		wait for baud_rate;
+
 		finished <= '1';
 		wait;
 	end process;

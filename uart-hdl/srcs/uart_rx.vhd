@@ -8,14 +8,14 @@ entity uart_rx is
 		STOP_TICKS: integer := 16
 	);
 	Port(
-		clk:		  in  std_logic;
-		rst:		  in  std_logic;
+		clk:	      in  std_logic;
+		rst:	      in  std_logic;
 		parity_ctrl:  in  std_logic;
-		rx:			  in  std_logic;
-		s_tick:		  in  std_logic;
-		rx_done:	  out std_logic;
+		rx:	      in  std_logic;
+		s_tick:	      in  std_logic;
+		rx_done:      out std_logic;
 		parity_error: out std_logic;
-		data_out:	  out std_logic_vector(DATA_BITS-1 downto 0)
+		data_out:     out std_logic_vector(DATA_BITS-1 downto 0)
 	);
 end uart_rx;
 
@@ -42,10 +42,10 @@ begin
 			p_reg	  <= '0';
 		elsif rising_edge(clk) then
 			state_reg <= state_next;
-			s_reg	 <= s_next;
-			n_reg	 <= n_next;
-			b_reg	 <= b_next;
-			p_reg	 <= p_next;
+			s_reg	  <= s_next;
+			n_reg	  <= n_next;
+			b_reg	  <= b_next;
+			p_reg	  <= p_next;
 		end if;
 	end process;
 

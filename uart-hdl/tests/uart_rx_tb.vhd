@@ -14,10 +14,10 @@ architecture Behavioral of uart_rx_tb is
 	signal finished: std_logic := '0';
 
 	procedure receive_uart_byte (
-				signal par_ctrl: in std_logic;
-				data_in: in std_logic_vector(7 downto 0);
-				gen_err: in boolean;
-				signal tx_line: out std_logic
+			signal par_ctrl: in std_logic;
+			data_in: in std_logic_vector(7 downto 0);
+			gen_err: in boolean;
+			signal tx_line: out std_logic
 		) is
 			variable parity_bit: std_logic;
 	begin
@@ -29,19 +29,19 @@ architecture Behavioral of uart_rx_tb is
 
 		-- data bits
 		for i in 0 to 7 loop
-				parity_bit := parity_bit XOR data_in(i);
-				tx_line <= data_in(i);
-				wait for baud_rate;
+			parity_bit := parity_bit XOR data_in(i);
+			tx_line <= data_in(i);
+			wait for baud_rate;
 		end loop;
 
 		--if parity enabled send parity bit
 		if par_ctrl = '1' then
-				if gen_err = false then
-						tx_line <= parity_bit;
-				else
-						tx_line <= parity_bit XOR '1';
-				end if;
-				wait for baud_rate;
+			if gen_err = false then
+				tx_line <= parity_bit;
+			else
+				tx_line <= parity_bit XOR '1';
+			end if;
+			wait for baud_rate;
 		end if;
 
 		--stop bit
@@ -54,24 +54,24 @@ begin
 	baud_gen: entity work.BaudGenerator
 	Generic map(N => 7, M => 68) --generate baud of 115200
 	Port map(
-			clk => clk,
-			rst => rst,
-			max_tick => s_tick,
-			q => open
+		clk => clk,
+		rst => rst,
+		max_tick => s_tick,
+		q => open
 	);
 
 
 	rx_uut: entity work.uart_rx
 	Generic map(DATA_BITS => 8, STOP_TICKS => 16)
 	Port map(
-			clk			 => clk,
-			rst	     	 => rst,
-			parity_ctrl  => parity_ctrl,
-			rx			 => rx,
-			s_tick		 => s_tick,
-			rx_done		 => rx_done,
-			parity_error => parity_error,
-			data_out	 => data_out
+		clk	     => clk,
+		rst	     => rst,
+		parity_ctrl  => parity_ctrl,
+		rx	     => rx,
+		s_tick	     => s_tick,
+		rx_done	     => rx_done,
+		parity_error => parity_error,
+		data_out     => data_out
 	);
 
 	rst <= '0';

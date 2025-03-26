@@ -7,10 +7,35 @@ end uart_tx_tb;
 
 architecture Behavioral of uart_tx_tb is
 
-	signal clk, rst, tx_start, s_tick, tx, tx_done, parity_ctrl: std_logic;
-	signal data_in: std_logic_vector(7 downto 0);
+	signal clk, rst, tx_start, s_tick, tx, tx_done, parity_ctrl: std_logic := '0';
+	signal data_in: std_logic_vector(7 downto 0) := (others => '0');
 	signal clk_period: time := 8 ns; --clk 125 MHz
+	constant baud_rate: time := 8.68 us; --115200 baud
+	signal finished: std_logic := '0';
 
+	procedure send_uart_byte (
+				data: in std_logic_vector(7 downto 0);
+				parity: in boolean;
+				signal din: out std_logic_vector(7 downto 0);
+				signal par_ctrl: out std_logic;
+				signal start: out std_logic
+		) is
+	begin
+			if parity = true then
+					par_ctrl <= '1';
+			else
+					par_ctrl <= '0';
+			end if;
+
+			din <= data;
+			wait for 2 * baud_rate;
+
+			start <= '1';
+			wait for clk_period;
+
+			start <= '0';
+			wait for baud_rate * 10;
+	end send_uart_byte;
 begin
 
 	baud_gen: entity work.BaudGenerator
@@ -37,33 +62,21 @@ begin
 
 	rst <= '0';
 
-	--clk process
-	process
-	begin
-		clk <= '1';
-		wait for clk_period/2;
-		clk <= '0';
-		wait for clk_period/2;
-	end process;
+	--clk
+	clk <= not clk after clk_period/2 when finished /= '1' else '0';
 
 	process
 	begin
-		parity_ctrl <= '1';
-		data_in <= x"55";
-		tx_start <= '0';
-		wait for 16 us;
-		tx_start <= '1';
-		wait for 20 ns;
-		tx_start <= '0';
-		wait for 2 ms;
 
-		parity_ctrl <= '0';
-		wait for 50 ns;
-		data_in <= x"55";
-		tx_start <= '1';
-		wait for 20 ns;
-		tx_start <= '0';
-		wait for 2 ms;
+		--send with parity
+		send_uart_byte(x"55", true, data_in, parity_ctrl, tx_start);
+
+		--send without parity
+		send_uart_byte(x"55", false, data_in, parity_ctrl, tx_start);
+		wait for baud_rate;
+
+		finished <= '1';
+		wait;
 	end process;
 
 end Behavioral;

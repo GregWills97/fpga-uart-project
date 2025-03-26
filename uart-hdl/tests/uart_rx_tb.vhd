@@ -7,9 +7,32 @@ end uart_rx_tb;
 
 architecture Behavioral of uart_rx_tb is
 
-	signal clk, rst, rx, s_tick, rx_done, parity_ctrl, parity_error: std_logic;
-	signal data_out: std_logic_vector(7 downto 0);
+	signal clk, rst, rx, s_tick, rx_done, parity_ctrl, parity_error: std_logic := '0';
+	signal data_out: std_logic_vector(7 downto 0) := (others => '0');
 	constant clk_period: time := 8 ns; --125Mhz clk
+	constant baud_rate: time := 8.68 us; --115200 baud
+	signal finished: std_logic := '0';
+
+	procedure receive_uart_byte (
+				signal par_ctrl: in std_logic;
+				data_in: in std_logic_vector(7 downto 0);
+				parity_bit: in std_logic;
+				signal tx_line: out std_logic
+		) is
+	begin
+		tx_line <= '0';
+		wait for baud_rate;
+		for i in 0 to 7 loop
+				tx_line <= data_in(i);
+				wait for baud_rate;
+		end loop;
+		if par_ctrl = '1' then
+				tx_line <= parity_bit;
+				wait for baud_rate;
+		end if;
+		tx_line <= '1';
+		wait for 2 * baud_rate;
+	end receive_uart_byte;
 
 begin
 
@@ -38,91 +61,28 @@ begin
 
 	rst <= '0';
 
-	--clk process
-	process
-	begin
-		clk <= '1';
-		wait for clk_period/2;
-		clk <= '0';
-		wait for clk_period/2;
-	end process;
+	--clk
+	clk <= not clk after clk_period/2 when finished /= '1' else '0';
 
 	process
 	begin
 		parity_ctrl <= '1';
 		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 500 us;
+		wait for baud_rate;
 
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 500 us;
+		--0x55 with correct parity
+		receive_uart_byte(parity_ctrl, x"55", '0', rx);
 
+		--0x55 with incorrect parity
+		receive_uart_byte(parity_ctrl, x"55", '1', rx);
+
+		--0x55 without parity
 		parity_ctrl <= '0';
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 8.68 us;
-		rx <= '0';
-		wait for 8.68 us;
-		rx <= '1';
-		wait for 500 us;
+		receive_uart_byte(parity_ctrl, x"55", '0', rx);
+
+		wait for baud_rate;
+		finished <= '1';
+		wait;
 	end process;
 
 end Behavioral;

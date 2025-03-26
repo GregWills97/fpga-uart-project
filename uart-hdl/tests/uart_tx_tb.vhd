@@ -14,6 +14,7 @@ architecture Behavioral of uart_tx_tb is
 	signal finished: std_logic := '0';
 
 	procedure send_uart_byte (
+				signal par_ctrl: in std_logic;
 				data: in std_logic_vector(7 downto 0);
 				signal din: out std_logic_vector(7 downto 0);
 				signal start: out std_logic
@@ -24,9 +25,15 @@ architecture Behavioral of uart_tx_tb is
 
 			start <= '1';
 			wait for clk_period;
-
 			start <= '0';
-			wait for baud_rate * 10;
+
+			--(start bit + 8 data bits + stop bit + if(parity_ctrl))
+			if par_ctrl = '1' then
+					wait for baud_rate * 11;
+			else
+					wait for baud_rate * 10;
+			end if;
+
 	end send_uart_byte;
 
 begin
@@ -63,11 +70,19 @@ begin
 
 		--send with parity
 		parity_ctrl <= '1';
-		send_uart_byte(x"55", data_in, tx_start);
+		send_uart_byte(parity_ctrl, x"55", data_in, tx_start);
 
 		--send without parity
 		parity_ctrl <= '0';
-		send_uart_byte(x"55", data_in, tx_start);
+		send_uart_byte(parity_ctrl, x"55", data_in, tx_start);
+
+		--send with parity
+		parity_ctrl <= '1';
+		send_uart_byte(parity_ctrl, x"73", data_in, tx_start);
+
+		--send without parity
+		parity_ctrl <= '0';
+		send_uart_byte(parity_ctrl, x"73", data_in, tx_start);
 		wait for baud_rate;
 
 		finished <= '1';

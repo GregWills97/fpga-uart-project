@@ -9,7 +9,7 @@ architecture Behavioral of uart_tx_tb is
 
 	signal clk, rst, tx_start, s_tick, tx, tx_done, parity_ctrl: std_logic := '0';
 	signal data_in: std_logic_vector(7 downto 0) := (others => '0');
-	signal clk_period: time := 8 ns; --clk 125 MHz
+	constant clk_period: time := 8 ns; --clk 125 MHz
 	constant baud_rate: time := 8.68 us; --115200 baud
 	signal finished: std_logic := '0';
 

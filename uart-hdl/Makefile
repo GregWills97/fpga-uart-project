@@ -1,7 +1,7 @@
 GHDL := ghdl
 GTKW := gtkwave
-SRCS = srcs/baud_gen.vhd srcs/uart_rx.vhd srcs/uart_tx.vhd
-TESTS = tests/uart_rx_tb.vhd tests/uart_tx_tb.vhd
+SRCS = srcs/baud_gen.vhd srcs/uart_rx.vhd srcs/uart_tx.vhd srcs/fifo.vhd
+TESTS = tests/uart_rx_tb.vhd tests/uart_tx_tb.vhd tests/fifo_tb.vhd
 
 analyze: $(SRCS) $(TESTS)
 	$(GHDL) -a $^
@@ -20,7 +20,14 @@ uart_tx: analyze
 uart_tx_wave: uart_tx
 	$(GTKW) $<.vcd
 
-all: uart_rx uart_tx
+fifo: analyze
+	$(GHDL) -e $@_tb
+	$(GHDL) -r $@_tb --vcd=$@.vcd
+
+fifo_wave: fifo
+	$(GTKW) $<.vcd
+
+all: uart_rx uart_tx fifo
 
 clean:
 	@rm -f *.cf

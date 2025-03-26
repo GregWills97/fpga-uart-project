@@ -24,10 +24,10 @@ architecture Behavioral of uart_rx is
 	type state_type is (idle, start, data, parity, stop);
 	signal state_reg, state_next: state_type;
 
-	signal s_reg, s_next: unsigned(3 downto 0) := (others => '0');					 --holds s_tick count
-	signal n_reg, n_next: unsigned(2 downto 0) := (others => '0');					 --holds bit count
+	signal s_reg, s_next: unsigned(3 downto 0) := (others => '0');			 --holds s_tick count
+	signal n_reg, n_next: unsigned(2 downto 0) := (others => '0');			 --holds bit count
 	signal b_reg, b_next: std_logic_vector(DATA_BITS-1 downto 0) := (others => '0'); --holds data_out
-	signal p_reg, p_next: std_logic := '0';											 --holds parity bit
+	signal p_reg, p_next: std_logic := '0';						 --holds parity bit
 
 begin
 

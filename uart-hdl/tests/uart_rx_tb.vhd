@@ -85,10 +85,10 @@ begin
 		rx <= '1';
 		wait for baud_rate;
 
-		--0x55 with correct parity
+		--0xAA with correct parity
 		receive_uart_byte(parity_ctrl, x"AA", false, rx);
 
-		--0x55 with incorrect parity
+		--0x77 with incorrect parity
 		receive_uart_byte(parity_ctrl, x"77", true, rx);
 
 		--0x55 without parity

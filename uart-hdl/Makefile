@@ -9,34 +9,22 @@ $(WORK): $(SRCS) $(TESTS)
 
 analyze: $(WORK)
 
+%.vcd: $(WORK)
+	$(GHDL) -e $(subst .vcd,_tb,$@)
+	$(GHDL) -r $(subst .vcd,_tb,$@) --vcd=$@
+
+%_wave: %.vcd
+	$(GTKW) $<
+
 uart_rx: uart_rx.vcd
-uart_rx.vcd: $(WORK)
-	$(GHDL) -e $(subst .vcd,_tb,$@)
-	$(GHDL) -r $(subst .vcd,_tb,$@) --vcd=$@
-
 uart_rx_wave: uart_rx.vcd
-	$(GTKW) $<
-
 uart_tx: uart_tx.vcd
-uart_tx.vcd: $(WORK)
-	$(GHDL) -e $(subst .vcd,_tb,$@)
-	$(GHDL) -r $(subst .vcd,_tb,$@) --vcd=$@
-
 uart_tx_wave: uart_tx.vcd
-	$(GTKW) $<
-
 fifo: fifo.vcd
-fifo.vcd: $(WORK)
-	$(GHDL) -e $(subst .vcd,_tb,$@)
-	$(GHDL) -r $(subst .vcd,_tb,$@) --vcd=$@
-
 fifo_wave: fifo.vcd
-	$(GTKW) $<
 
 all: uart_rx uart_tx fifo
-
 clean:
 	@rm -f *.cf
 	@rm -f *.o
-	@rm -f sim
 	@rm -f *.vcd

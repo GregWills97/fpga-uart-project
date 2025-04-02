@@ -11,6 +11,8 @@ architecture Behavioral of uart_tx_tb is
 	signal parity_ctrl: std_logic_vector(1 downto 0) := (others => '0');
 	signal data_bits: std_logic_vector(3 downto 0) := (others => '0');
 	signal data_in: std_logic_vector(8 downto 0) := (others => '0');
+	signal int_div: std_logic_vector(15 downto 0) := (others => '0');
+	signal frac_div: std_logic_vector(5 downto 0) := (others => '0');
 	constant clk_period: time := 8 ns; --clk 125 MHz
 	constant baud_rate: time := 8.68 us; --115200 baud
 	signal finished: std_logic := '0';
@@ -48,13 +50,13 @@ architecture Behavioral of uart_tx_tb is
 
 begin
 
-	baud_gen: entity work.BaudGenerator
-	Generic map(N => 7, M => 68) --generate baud of 115200
+	baud_gen_uut: entity work.baud_generator
 	Port map(
 		clk => clk,
 		rst => rst,
-		max_tick => s_tick,
-		q => open
+		int_div => int_div,
+		frac_div => frac_div,
+		max_tick => s_tick
 	);
 
 	tx_uut: entity work.uart_tx
@@ -73,6 +75,10 @@ begin
 	);
 
 	rst <= '0';
+
+	--Baud rate of 115200
+	int_div <= std_logic_vector(to_unsigned(2, int_div'length));
+	frac_div <= std_logic_vector(to_unsigned(11, frac_div'length));
 
 	--clk
 	clk <= not clk after clk_period/2 when finished /= '1' else '0';

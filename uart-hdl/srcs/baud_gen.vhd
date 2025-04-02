@@ -2,44 +2,57 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
---Clock on Zybo board is 125 MHz
---Max_pulse needs to be 16 times the frequency of the baud rate (115200 baud)
---(125 Mhz) / (115200 * 16) = 67.8168, so M needs to be 68
---to hold that count r_reg needs 7 bits
-
-entity BaudGenerator is
-	Generic(
-		N: integer := 7;
-		M: integer := 68
-	);
+entity baud_generator is
 	Port(
 		clk:	  in  std_logic;
 		rst:	  in  std_logic;
-		max_tick: out std_logic;
-		q: 	  out std_logic_vector(N-1 downto 0)
+		int_div:  in  std_logic_vector(15 downto 0);
+		frac_div: in  std_logic_vector(5 downto 0);
+		err_ovf:  out std_logic;
+		max_tick: out std_logic
 	);
-end BaudGenerator;
+end baud_generator;
 
-architecture Behavioral of BaudGenerator is
+architecture Behavioral of baud_generator is
 
-	signal r_reg, r_next: unsigned(N-1 downto 0) := (others => '0');
+	signal count_reg, count_next: unsigned(15 downto 0) := (others => '0');
+	signal err_reg, err_next: unsigned(6 downto 0) := (others => '0');
 
+	signal err_max: integer := 2**frac_div'length;
 begin
 	--register assignments
 	process(clk, rst)
 	begin
 		if(rst = '1') then
-			r_reg <= (others => '0');
+			count_reg <= (others => '0');
+			err_reg <= (others => '0');
 		elsif rising_edge(clk) then
-			r_reg <= r_next;
+			count_reg <= count_next;
+			err_reg <= err_next;
 		end if;
 	end process;
 
 	--next state logic
-	r_next <= (others => '0') when r_reg = (M-1) else r_reg + 1;
+	process(count_reg, err_reg)
+	begin
+		count_next <= count_reg;
+		err_next <= err_reg;
 
-	--output logic
-	q <= std_logic_vector(r_reg);
-	max_tick <= '1' when r_reg = (M-1) else '0';
+		if count_reg >= unsigned(int_div) then
+			count_next <= to_unsigned(1, count_reg'length);
 
+			err_next <= err_reg + unsigned(frac_div);
+			if err_reg >= err_max then
+				--add in extra clock cycle by starting at zero instead of one
+				count_next <= (others => '0');
+				err_next <= err_reg - err_max;
+			end if;
+		else
+			count_next <= count_reg + 1;
+		end if;
+	end process;
+
+	--output
+	max_tick <= '1' when count_reg >= unsigned(int_div) else '0';
+	err_ovf <= '1' when err_reg >= err_max else '0';
 end Behavioral;

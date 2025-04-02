@@ -7,34 +7,44 @@ end uart_tx_tb;
 
 architecture Behavioral of uart_tx_tb is
 
-	signal clk, rst, tx_start, s_tick, tx, tx_done, parity_ctrl: std_logic := '0';
-	signal data_in: std_logic_vector(7 downto 0) := (others => '0');
+	signal clk, rst, tx_start, s_tick, tx, tx_done, stop_bits: std_logic := '0';
+	signal parity_ctrl: std_logic_vector(1 downto 0) := (others => '0');
+	signal data_bits: std_logic_vector(3 downto 0) := (others => '0');
+	signal data_in: std_logic_vector(8 downto 0) := (others => '0');
 	constant clk_period: time := 8 ns; --clk 125 MHz
 	constant baud_rate: time := 8.68 us; --115200 baud
 	signal finished: std_logic := '0';
 
-	procedure send_uart_byte (
-			signal par_ctrl: in std_logic;
-			data: in std_logic_vector(7 downto 0);
-			signal din: out std_logic_vector(7 downto 0);
+	procedure receive_uart_byte (
+			signal par_ctrl: in std_logic_vector(1 downto 0);
+			data_length: in integer;
+			signal stp_bit: in std_logic;
+			data: in std_logic_vector(8 downto 0);
+			signal din: out std_logic_vector(8 downto 0);
 			signal start: out std_logic
 		) is
 	begin
 		din <= data;
-		wait for 2 * baud_rate;
-
 		start <= '1';
 		wait for clk_period;
 		start <= '0';
 
-		--(start bit + 8 data bits + stop bit + if(parity_ctrl))
-		if par_ctrl = '1' then
-			wait for baud_rate * 11;
+		--wait for start bit + num data bits + if(parity_bit) + num stop bits + 1 for padding
+		if unsigned(par_ctrl) > 0 then
+			if stp_bit = '1' then
+				wait for baud_rate * (1 + data_length + 1 + 2 + 1);
+			else
+				wait for baud_rate * (1 + data_length + 1 + 1 + 1);
+			end if;
 		else
-			wait for baud_rate * 10;
+			if stp_bit = '1' then
+				wait for baud_rate * (1 + data_length + 2 + 1);
+			else
+				wait for baud_rate * (1 + data_length + 1 + 1);
+			end if;
 		end if;
 
-	end send_uart_byte;
+	end receive_uart_byte;
 
 begin
 
@@ -48,13 +58,15 @@ begin
 	);
 
 	tx_uut: entity work.uart_tx
-	Generic map(DATA_BITS => 8, STOP_TICKS => 16)
+	Generic map(S_TICKS_PER_BAUD => 16, DATA_BITS_MAX => 9)
 	Port map(
 		clk	    => clk,
 		rst	    => rst,
-		parity_ctrl => parity_ctrl,
 		tx_start    => tx_start,
 		s_tick	    => s_tick,
+		stop_bits   => stop_bits,
+		parity_ctrl => parity_ctrl,
+		data_bits   => data_bits,
 		data_in	    => data_in,
 		tx_done	    => tx_done,
 		tx	    => tx
@@ -66,24 +78,28 @@ begin
 	clk <= not clk after clk_period/2 when finished /= '1' else '0';
 
 	process
+		type data_array is array (0 to 1) of std_logic_vector(8 downto 0);
+		variable test_data: data_array := ('0' & x"AA", '0' & x"75");
 	begin
 
-		--send with parity
-		parity_ctrl <= '1';
-		send_uart_byte(parity_ctrl, x"55", data_in, tx_start);
-
-		--send without parity
-		parity_ctrl <= '0';
-		send_uart_byte(parity_ctrl, x"55", data_in, tx_start);
-
-		--send with parity
-		parity_ctrl <= '1';
-		send_uart_byte(parity_ctrl, x"73", data_in, tx_start);
-
-		--send without parity
-		parity_ctrl <= '0';
-		send_uart_byte(parity_ctrl, x"73", data_in, tx_start);
 		wait for baud_rate;
+
+		for i in test_data'range loop -- test data loop
+		for j in 5 to 9 loop  -- data bit loop
+		for k in 0 to 2 loop -- parity config loop
+			data_bits <= std_logic_vector(to_unsigned(j, data_bits'length));
+			parity_ctrl <= std_logic_vector(to_unsigned(k, parity_ctrl'length));
+
+			--1 stop bit
+			stop_bits <= '0';
+			receive_uart_byte(parity_ctrl, j, stop_bits, test_data(i), data_in, tx_start);
+
+			--2 stop bit
+			stop_bits <= '1';
+			receive_uart_byte(parity_ctrl, j, stop_bits, test_data(i), data_in, tx_start);
+		end loop;
+		end loop;
+		end loop;
 
 		finished <= '1';
 		wait;

@@ -105,23 +105,23 @@ begin
 		rx <= '1';
 
 		for i in test_data'range loop -- test data loop
-			for j in 5 to 9 loop  -- data bit loop
-				for k in 0 to 2 loop -- parity config loop
-					data_bits <= std_logic_vector(to_unsigned(j, data_bits'length));
-					parity_ctrl <= std_logic_vector(to_unsigned(k, parity_ctrl'length));
-					stop_bits <= '0'; -- 1 stop bit
-					send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), false, rx);
-					if k > 0 then
-						send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), true, rx); --generate error
-					end if;
+		for j in 5 to 9 loop  -- data bit loop
+		for k in 0 to 2 loop -- parity config loop
+			data_bits <= std_logic_vector(to_unsigned(j, data_bits'length));
+			parity_ctrl <= std_logic_vector(to_unsigned(k, parity_ctrl'length));
+			stop_bits <= '0'; -- 1 stop bit
+			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), false, rx);
+			if k > 0 then
+				send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), true, rx); --generate error
+			end if;
 
-					stop_bits <= '1'; -- 2 stop bit
-					send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), false, rx);
-					if k > 0 then
-						send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), true, rx); --generate error
-					end if;
-				end loop;
-			end loop;
+			stop_bits <= '1'; -- 2 stop bit
+			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), false, rx);
+			if k > 0 then
+				send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), true, rx); --generate error
+			end if;
+		end loop;
+		end loop;
 		end loop;
 
 		finished <= '1';

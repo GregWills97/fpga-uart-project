@@ -29,9 +29,7 @@ architecture Behavioral of uart_rx is
 	signal s_reg, s_next: unsigned(4 downto 0) := (others => '0');		--holds s_tick count
 	signal n_reg, n_next: unsigned(3 downto 0) := (others => '0');		--holds bit count
 	signal b_reg, b_next: std_logic_vector(DATA_BITS_MAX-1 downto 0) := (others => '0'); --holds data_out
-	signal db_reg, db_next: unsigned(3 downto 0) := (others => '0');	--holds data bit config
 	signal p_reg, p_next: std_logic := '0';					--holds parity bit
-	signal stp_reg, stp_next: unsigned(1 downto 0) := (others => '0');	--holds num stop bits
 
 begin
 
@@ -44,20 +42,21 @@ begin
 			n_reg	  <= (others => '0');
 			b_reg	  <= (others => '0');
 			p_reg	  <= '0';
-			stp_reg	  <= (others => '0');
 		elsif rising_edge(clk) then
 			state_reg <= state_next;
 			s_reg	  <= s_next;
 			n_reg	  <= n_next;
 			b_reg	  <= b_next;
-			db_reg	  <= db_next;
 			p_reg	  <= p_next;
-			stp_reg	  <= stp_next;
 		end if;
 	end process;
 
 	--next state logic
-	process(state_reg, s_reg, n_reg, b_reg, db_reg, p_reg, stp_reg, s_tick, rx)
+	process(state_reg, s_reg, n_reg, b_reg, p_reg, s_tick, rx)
+		type parity_type is (none, even, odd);
+		variable parity_setting: parity_type := none;
+		variable num_stop_ticks: integer := 0;
+		variable num_dbits: integer := 0;
 	begin
 		--these assignments are to trigger the sensitivity list
 		--state_next gets its actual value below
@@ -65,9 +64,7 @@ begin
 		s_next	     <= s_reg;
 		n_next	     <= n_reg;
 		b_next	     <= b_reg;
-		db_next	     <= db_reg;
 		p_next	     <= p_reg;
-		stp_next     <= stp_reg;
 		parity_error <= '0';
 		rx_done	     <= '0';
 
@@ -86,22 +83,31 @@ begin
 						state_next <= data;
 						s_next	   <= (others => '0');
 						n_next	   <= (others => '0');
+						b_next	   <= (others => '0');
 
-						--Check data bit config
+						--Lock in configuration for receiving
 						if (unsigned(data_bits) >= 5) OR
 							(unsigned(data_bits) <= 9) then
-							db_next <= unsigned(data_bits);
+							num_dbits := to_integer(unsigned(data_bits));
 						else
-							db_next <= x"8";
+							num_dbits := 8;
+						end if;
+
+						if (parity_ctrl = "01") then
+							parity_setting := odd;
+						elsif (parity_ctrl = "10") then
+							parity_setting := even;
+						else
+							parity_setting := none;
 						end if;
 
 						p_next <= '0';
 
 						--Check stop config
 						if stop_bits = '1' then
-							stp_next <= "10";
+							num_stop_ticks := S_TICKS_PER_BAUD * 2;
 						else
-							stp_next <= "01";
+							num_stop_ticks := S_TICKS_PER_BAUD;
 						end if;
 					else
 						s_next <= s_reg + 1;
@@ -112,11 +118,10 @@ begin
 				if s_tick = '1' then
 					if s_reg = S_TICKS_PER_BAUD-1 then
 						s_next <= (others => '0');
-						b_next(to_integer(db_reg)-1 downto 0) <=
-							rx & b_reg(to_integer(db_reg)-1 downto 1);
+						b_next(num_dbits-1 downto 0) <= rx & b_reg(num_dbits-1 downto 1);
 						p_next <= rx XOR p_reg;
-						if n_reg = db_reg - 1 then
-							if unsigned(parity_ctrl) > "00" then
+						if n_reg = num_dbits - 1 then
+							if parity_setting /= none then
 								state_next <= parity;
 							else
 								state_next <= stop;
@@ -133,10 +138,10 @@ begin
 				if s_tick = '1' then
 					if s_reg = S_TICKS_PER_BAUD-1 then
 						state_next <= stop;
-						if parity_ctrl = "01" then	--odd parity
+						if parity_setting = odd then	--odd parity
 							parity_error <= not (p_reg XOR rx);
 						else				--even parity
-							parity_error <= p_reg;
+							parity_error <= p_reg XOR rx;
 						end if;
 						s_next <= (others => '0');
 					else
@@ -146,7 +151,7 @@ begin
 
 			when stop =>
 				if s_tick = '1' then
-					if s_reg = (to_integer(stp_reg) * S_TICKS_PER_BAUD) - 1 then
+					if s_reg = num_stop_ticks - 1 then
 						state_next <= idle;
 						rx_done <= '1';
 					else

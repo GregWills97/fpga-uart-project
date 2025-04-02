@@ -17,7 +17,7 @@ architecture Behavioral of uart_rx_tb is
 	signal finished: std_logic := '0';
 
 	procedure send_uart_byte (
-			signal num_length: in std_logic_vector(3 downto 0);
+			signal data_length: in std_logic_vector(3 downto 0);
 			signal par_ctrl: in std_logic_vector(1 downto 0);
 			signal num_stop: in std_logic;
 			data_in: in std_logic_vector(8 downto 0);
@@ -34,7 +34,7 @@ architecture Behavioral of uart_rx_tb is
 		wait for baud_rate;
 
 		-- data bits
-		for i in 0 to to_integer(unsigned(num_length)) - 1 loop
+		for i in 0 to to_integer(unsigned(data_length)) - 1 loop
 			parity_bit := parity_bit XOR data_in(i);
 			tx_line <= data_in(i);
 			wait for baud_rate;
@@ -105,11 +105,24 @@ begin
 	begin
 		rx <= '1';
 
-		for i in test_data'range loop
-			data_bits <= x"8";
-			parity_ctrl <= "01";
-			stop_bits <= '1';
-			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), false, rx);
+		for i in test_data'range loop -- test data loop
+			for j in 5 to 9 loop  -- data bit loop
+				for k in 0 to 2 loop -- parity config loop
+					data_bits <= std_logic_vector(to_unsigned(j, data_bits'length));
+					parity_ctrl <= std_logic_vector(to_unsigned(k, parity_ctrl'length));
+					stop_bits <= '0'; -- 1 stop bit
+					send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), false, rx);
+					if k > 0 then
+						send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), true, rx); --generate error
+					end if;
+
+					stop_bits <= '1'; -- 2 stop bit
+					send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), false, rx);
+					if k > 0 then
+						send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), true, rx); --generate error
+					end if;
+				end loop;
+			end loop;
 		end loop;
 
 		finished <= '1';

@@ -7,8 +7,6 @@ WORK = work-obj93.cf
 $(WORK): $(SRCS) $(TESTS)
 	$(GHDL) -a $^
 
-analyze: $(WORK)
-
 %.vcd: $(WORK)
 	$(GHDL) -e $(subst .vcd,_tb,$@)
 	$(GHDL) -r $(subst .vcd,_tb,$@) --vcd=$@
@@ -16,6 +14,7 @@ analyze: $(WORK)
 %_wave: %.vcd
 	$(GTKW) $<
 
+analyze: $(WORK)
 uart_rx: uart_rx.vcd
 uart_rx_wave: uart_rx.vcd
 uart_tx: uart_tx.vcd

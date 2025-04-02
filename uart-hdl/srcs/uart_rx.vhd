@@ -1,21 +1,23 @@
 library IEEE;
+
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
 entity uart_rx is
 	Generic(
-		DATA_BITS:  integer := 8;
-		STOP_TICKS: integer := 16
-	);
+		S_TICKS_PER_BAUD: integer := 16;
+		DATA_BITS_MAX: integer := 9);
 	Port(
 		clk:	      in  std_logic;
 		rst:	      in  std_logic;
-		parity_ctrl:  in  std_logic;
 		rx:	      in  std_logic;
 		s_tick:	      in  std_logic;
+		stop_bits:    in  std_logic;			--0 for 1 stop bit, 1 for 2 stop bits
+		parity_ctrl:  in  std_logic_vector(1 downto 0);	--0 for off, 10 for even, 01 for odd
+		data_bits:    in  std_logic_vector(3 downto 0);	--possible values of 5,6,7,8,9
 		rx_done:      out std_logic;
 		parity_error: out std_logic;
-		data_out:     out std_logic_vector(DATA_BITS-1 downto 0)
+		data_out:     out std_logic_vector(DATA_BITS_MAX-1 downto 0)
 	);
 end uart_rx;
 
@@ -24,10 +26,12 @@ architecture Behavioral of uart_rx is
 	type state_type is (idle, start, data, parity, stop);
 	signal state_reg, state_next: state_type;
 
-	signal s_reg, s_next: unsigned(3 downto 0) := (others => '0');			 --holds s_tick count
-	signal n_reg, n_next: unsigned(2 downto 0) := (others => '0');			 --holds bit count
-	signal b_reg, b_next: std_logic_vector(DATA_BITS-1 downto 0) := (others => '0'); --holds data_out
-	signal p_reg, p_next: std_logic := '0';						 --holds parity bit
+	signal s_reg, s_next: unsigned(4 downto 0) := (others => '0');		--holds s_tick count
+	signal n_reg, n_next: unsigned(3 downto 0) := (others => '0');		--holds bit count
+	signal b_reg, b_next: std_logic_vector(DATA_BITS_MAX-1 downto 0) := (others => '0'); --holds data_out
+	signal db_reg, db_next: unsigned(3 downto 0) := (others => '0');	--holds data bit config
+	signal p_reg, p_next: std_logic := '0';					--holds parity bit
+	signal stp_reg, stp_next: unsigned(1 downto 0) := (others => '0');	--holds num stop bits
 
 begin
 
@@ -40,17 +44,20 @@ begin
 			n_reg	  <= (others => '0');
 			b_reg	  <= (others => '0');
 			p_reg	  <= '0';
+			stp_reg	  <= (others => '0');
 		elsif rising_edge(clk) then
 			state_reg <= state_next;
 			s_reg	  <= s_next;
 			n_reg	  <= n_next;
 			b_reg	  <= b_next;
+			db_reg	  <= db_next;
 			p_reg	  <= p_next;
+			stp_reg	  <= stp_next;
 		end if;
 	end process;
 
 	--next state logic
-	process(state_reg, s_reg, n_reg, b_reg, p_reg, s_tick, rx)
+	process(state_reg, s_reg, n_reg, b_reg, db_reg, p_reg, stp_reg, s_tick, rx)
 	begin
 		--these assignments are to trigger the sensitivity list
 		--state_next gets its actual value below
@@ -58,39 +65,58 @@ begin
 		s_next	     <= s_reg;
 		n_next	     <= n_reg;
 		b_next	     <= b_reg;
+		db_next	     <= db_reg;
 		p_next	     <= p_reg;
+		stp_next     <= stp_reg;
 		parity_error <= '0';
 		rx_done	     <= '0';
 
 		case state_reg is
 
 			when idle =>
-				if (rx = '0') then
+				if rx = '0' then
 					state_next <= start;
-					s_next	 <= (others => '0');
+					s_next <= (others => '0');
 				end if;
 
 			when start =>
-				--when s_reg is 7 we are in the middle of the start bit
-				if (s_tick = '1') then
-					if (s_reg = 7) then
+				if s_tick = '1' then
+					--check in middle of the start bit
+					if s_reg = (S_TICKS_PER_BAUD/2) - 1 then
 						state_next <= data;
 						s_next	   <= (others => '0');
 						n_next	   <= (others => '0');
-						p_next	   <= '0';
+
+						--Check data bit config
+						if (unsigned(data_bits) >= 5) OR
+							(unsigned(data_bits) <= 9) then
+							db_next <= unsigned(data_bits);
+						else
+							db_next <= x"8";
+						end if;
+
+						p_next <= '0';
+
+						--Check stop config
+						if stop_bits = '1' then
+							stp_next <= "10";
+						else
+							stp_next <= "01";
+						end if;
 					else
-						s_next	   <= s_reg + 1;
+						s_next <= s_reg + 1;
 					end if;
 				end if;
 
 			when data =>
-				if (s_tick = '1') then
-					if (s_reg = 15) then
+				if s_tick = '1' then
+					if s_reg = S_TICKS_PER_BAUD-1 then
 						s_next <= (others => '0');
-						b_next <= rx & b_reg(DATA_BITS-1 downto 1);
+						b_next(to_integer(db_reg)-1 downto 0) <=
+							rx & b_reg(to_integer(db_reg)-1 downto 1);
 						p_next <= rx XOR p_reg;
-						if(n_reg = (DATA_BITS - 1)) then
-							if(parity_ctrl = '1') then
+						if n_reg = db_reg - 1 then
+							if unsigned(parity_ctrl) > "00" then
 								state_next <= parity;
 							else
 								state_next <= stop;
@@ -104,10 +130,14 @@ begin
 				end if;
 
 			when parity =>
-				if (s_tick = '1') then
-					if (s_reg = 15) then
+				if s_tick = '1' then
+					if s_reg = S_TICKS_PER_BAUD-1 then
 						state_next <= stop;
-						parity_error <= p_reg XOR rx;
+						if parity_ctrl = "01" then	--odd parity
+							parity_error <= not (p_reg XOR rx);
+						else				--even parity
+							parity_error <= p_reg;
+						end if;
 						s_next <= (others => '0');
 					else
 						s_next <= s_reg + 1;
@@ -115,8 +145,8 @@ begin
 				end if;
 
 			when stop =>
-				if (s_tick = '1') then
-					if (s_reg = (STOP_TICKS - 1)) then
+				if s_tick = '1' then
+					if s_reg = (to_integer(stp_reg) * S_TICKS_PER_BAUD) - 1 then
 						state_next <= idle;
 						rx_done <= '1';
 					else

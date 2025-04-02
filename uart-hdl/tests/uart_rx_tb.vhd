@@ -1,4 +1,5 @@
 library IEEE;
+
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
@@ -7,20 +8,25 @@ end uart_rx_tb;
 
 architecture Behavioral of uart_rx_tb is
 
-	signal clk, rst, rx, s_tick, rx_done, parity_ctrl, parity_error: std_logic := '0';
-	signal data_out: std_logic_vector(7 downto 0) := (others => '0');
+	signal clk, rst, rx, s_tick, rx_done, stop_bits, parity_error: std_logic := '0';
+	signal parity_ctrl: std_logic_vector(1 downto 0) := (others => '0');
+	signal data_bits: std_logic_vector(3 downto 0) := (others => '0');
+	signal data_out: std_logic_vector(8 downto 0) := (others => '0');
 	constant clk_period: time := 8 ns; --125Mhz clk
 	constant baud_rate: time := 8.68 us; --115200 baud
 	signal finished: std_logic := '0';
 
-	procedure receive_uart_byte (
-			signal par_ctrl: in std_logic;
-			data_in: in std_logic_vector(7 downto 0);
+	procedure send_uart_byte (
+			signal num_length: in std_logic_vector(3 downto 0);
+			signal par_ctrl: in std_logic_vector(1 downto 0);
+			signal num_stop: in std_logic;
+			data_in: in std_logic_vector(8 downto 0);
 			gen_err: in boolean;
 			signal tx_line: out std_logic
 		) is
 			variable parity_bit: std_logic;
 	begin
+		wait for baud_rate;
 		parity_bit := '0';
 
 		--start bit
@@ -28,26 +34,38 @@ architecture Behavioral of uart_rx_tb is
 		wait for baud_rate;
 
 		-- data bits
-		for i in 0 to 7 loop
+		for i in 0 to to_integer(unsigned(num_length)) - 1 loop
 			parity_bit := parity_bit XOR data_in(i);
 			tx_line <= data_in(i);
 			wait for baud_rate;
 		end loop;
 
 		--if parity enabled send parity bit
-		if par_ctrl = '1' then
+		if unsigned(par_ctrl) > "00" then
 			if gen_err = false then
-				tx_line <= parity_bit;
+				if par_ctrl = "01" then
+					tx_line <= not parity_bit;
+				else
+					tx_line <= parity_bit;
+				end if;
 			else
-				tx_line <= parity_bit XOR '1';
+				if par_ctrl = "01" then
+					tx_line <= parity_bit;
+				else
+					tx_line <= not parity_bit;
+				end if;
 			end if;
 			wait for baud_rate;
 		end if;
 
 		--stop bit
 		tx_line <= '1';
-		wait for 2 * baud_rate;
-	end receive_uart_byte;
+		if num_stop = '1' then
+			wait for 2 * baud_rate;
+		else
+			wait for baud_rate;
+		end if;
+	end send_uart_byte;
 
 begin
 
@@ -62,13 +80,15 @@ begin
 
 
 	rx_uut: entity work.uart_rx
-	Generic map(DATA_BITS => 8, STOP_TICKS => 16)
+	Generic map(S_TICKS_PER_BAUD => 16, DATA_BITS_MAX => 9)
 	Port map(
 		clk	     => clk,
 		rst	     => rst,
-		parity_ctrl  => parity_ctrl,
 		rx	     => rx,
 		s_tick	     => s_tick,
+		stop_bits    => stop_bits,
+		parity_ctrl  => parity_ctrl,
+		data_bits    => data_bits,
 		rx_done	     => rx_done,
 		parity_error => parity_error,
 		data_out     => data_out
@@ -80,21 +100,17 @@ begin
 	clk <= not clk after clk_period/2 when finished /= '1' else '0';
 
 	process
+		type data_array is array (0 to 1) of std_logic_vector(8 downto 0);
+		variable test_data: data_array := ('0' & x"AA", '0' & x"75");
 	begin
-		parity_ctrl <= '1';
 		rx <= '1';
-		wait for baud_rate;
 
-		--0xAA with correct parity
-		receive_uart_byte(parity_ctrl, x"AA", false, rx);
-
-		--0x77 with incorrect parity
-		receive_uart_byte(parity_ctrl, x"77", true, rx);
-
-		--0x55 without parity
-		parity_ctrl <= '0';
-		receive_uart_byte(parity_ctrl, x"55", false, rx);
-		wait for baud_rate;
+		for i in test_data'range loop
+			data_bits <= x"8";
+			parity_ctrl <= "01";
+			stop_bits <= '1';
+			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), false, rx);
+		end loop;
 
 		finished <= '1';
 		wait;

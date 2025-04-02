@@ -25,6 +25,7 @@ architecture Behavioral of uart_rx_tb is
 			signal tx_line: out std_logic
 		) is
 			variable parity_bit: std_logic;
+			variable gen_err_bit: std_logic;
 	begin
 		wait for baud_rate;
 		parity_bit := '0';
@@ -42,18 +43,16 @@ architecture Behavioral of uart_rx_tb is
 
 		--if parity enabled send parity bit
 		if unsigned(par_ctrl) > "00" then
-			if gen_err = false then
-				if par_ctrl = "01" then
-					tx_line <= not parity_bit;
-				else
-					tx_line <= parity_bit;
-				end if;
+			if gen_err = true then
+				gen_err_bit := '1';
 			else
-				if par_ctrl = "01" then
-					tx_line <= parity_bit;
-				else
-					tx_line <= not parity_bit;
-				end if;
+				gen_err_bit := '0';
+			end if;
+
+			if par_ctrl = "01" then
+				tx_line <= not parity_bit XOR gen_err_bit;
+			else
+				tx_line <= parity_bit XOR gen_err_bit;
 			end if;
 			wait for baud_rate;
 		end if;

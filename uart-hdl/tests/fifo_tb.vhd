@@ -69,6 +69,8 @@ begin
 			rd <= '0';
 			wait for clk_period;
 		end loop;
+
+		report "Successful test";
 		finished <= '1';
 		wait;
 	end process;

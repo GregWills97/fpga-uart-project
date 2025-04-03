@@ -129,6 +129,7 @@ begin
 		end loop;
 		end loop;
 
+		report "Successful test";
 		finished <= '1';
 		wait;
 	end process;

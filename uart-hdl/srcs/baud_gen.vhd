@@ -24,7 +24,7 @@ begin
 	process(clk, rst)
 		variable err_calc: unsigned(6 downto 0) := (others => '0');
 	begin
-		if(rst = '1') then
+		if rst = '1' then
 			count_acc <= (others => '0');
 			err_acc <= (others => '0');
 			tick <= '0';

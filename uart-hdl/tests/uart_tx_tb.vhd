@@ -77,8 +77,8 @@ begin
 	rst <= '0';
 
 	--Baud rate of 115200
-	int_div <= std_logic_vector(to_unsigned(2, int_div'length));
-	frac_div <= std_logic_vector(to_unsigned(11, frac_div'length));
+	int_div <= std_logic_vector(to_unsigned(67, int_div'length));
+	frac_div <= std_logic_vector(to_unsigned(52, frac_div'length));
 
 	--clk
 	clk <= not clk after clk_period/2 when finished /= '1' else '0';

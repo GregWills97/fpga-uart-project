@@ -18,7 +18,7 @@ architecture Behavioral of baud_gen_tb is
 	signal tick_count0, tick_count1, tick_count2: integer := 0;
 	signal baud_count0, baud_count1, baud_count2: integer := 0;
 
-	constant sec_divider: integer := 50;
+	constant sec_divider: integer := 20;
 begin
 
 	baud_gen_uut_0: entity work.baud_generator

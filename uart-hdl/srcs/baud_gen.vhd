@@ -8,7 +8,7 @@ entity baud_generator is
 		rst:	  in  std_logic;
 		int_div:  in  std_logic_vector(15 downto 0);
 		frac_div: in  std_logic_vector(5 downto 0);
-		s_tick: out std_logic
+		s_tick:   out std_logic
 	);
 end baud_generator;
 

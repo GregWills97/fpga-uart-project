@@ -75,7 +75,7 @@ begin
 		rst => rst,
 		int_div => int_div,
 		frac_div => frac_div,
-		max_tick => s_tick
+		s_tick => s_tick
 	);
 
 

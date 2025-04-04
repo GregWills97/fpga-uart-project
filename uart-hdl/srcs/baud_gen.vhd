@@ -8,51 +8,45 @@ entity baud_generator is
 		rst:	  in  std_logic;
 		int_div:  in  std_logic_vector(15 downto 0);
 		frac_div: in  std_logic_vector(5 downto 0);
-		err_ovf:  out std_logic;
-		max_tick: out std_logic
+		s_tick: out std_logic
 	);
 end baud_generator;
 
 architecture Behavioral of baud_generator is
 
-	signal count_reg, count_next: unsigned(15 downto 0) := (others => '0');
-	signal err_reg, err_next: unsigned(6 downto 0) := (others => '0');
+	signal count_acc: unsigned(15 downto 0) := (others => '0');
+	signal err_acc: unsigned(6 downto 0) := (others => '0');
+	signal tick: std_logic := '0';
+	signal err_max: unsigned(6 downto 0) := "1000000";
 
-	signal err_max: integer := 2**frac_div'length;
 begin
 	--register assignments
 	process(clk, rst)
+		variable err_calc: unsigned(6 downto 0) := (others => '0');
 	begin
 		if(rst = '1') then
-			count_reg <= (others => '0');
-			err_reg <= (others => '0');
+			count_acc <= (others => '0');
+			err_acc <= (others => '0');
+			tick <= '0';
 		elsif rising_edge(clk) then
-			count_reg <= count_next;
-			err_reg <= err_next;
-		end if;
-	end process;
+			if count_acc = unsigned(int_div) then
+				tick <= '1';
 
-	--next state logic
-	process(count_reg, err_reg)
-	begin
-		count_next <= count_reg;
-		err_next <= err_reg;
-
-		if count_reg >= unsigned(int_div) then
-			count_next <= to_unsigned(1, count_reg'length);
-
-			err_next <= err_reg + unsigned(frac_div);
-			if err_reg >= err_max then
-				--add in extra clock cycle by starting at zero instead of one
-				count_next <= (others => '0');
-				err_next <= err_reg - err_max;
+				err_calc := err_acc + unsigned(frac_div);
+				if err_calc >= err_max then
+					count_acc <= (others => '0');
+					err_acc <= err_calc - err_max;
+				else
+					count_acc <= to_unsigned(1, count_acc'length);
+					err_acc <= err_calc;
+				end if;
+			else
+				count_acc <= count_acc + 1;
+				tick <= '0';
 			end if;
-		else
-			count_next <= count_reg + 1;
 		end if;
 	end process;
 
-	--output
-	max_tick <= '1' when count_reg >= unsigned(int_div) else '0';
-	err_ovf <= '1' when err_reg >= err_max else '0';
+	s_tick <= tick;
+
 end Behavioral;

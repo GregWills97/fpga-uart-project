@@ -6,6 +6,12 @@ FLAGS = -O3
 WORKDIR= $(PWD)/work
 WORKFILE = $(WORKDIR)/work-obj93.cf
 
+TEX = pdflatex
+TEXOPTS = -output-dir=$(DOCBUILD)
+DOCNAME = uart_trm.tex
+DOCDIR = $(PWD)/docs
+DOCBUILD = $(DOCDIR)/build
+
 MODULES = baud_gen uart_rx uart_tx fifo
 
 $(WORKFILE): $(SRCS) $(TESTS)
@@ -29,6 +35,16 @@ $(WORKDIR)/%.vcd: $(WORKDIR)/%_tb
 
 $(MODULES): %: $(WORKDIR)/%_tb
 
+create_doc:
+	mkdir -p $(DOCBUILD)
+
+$(DOCBUILD)/$(DOCNAME:%.tex=%.pdf): $(DOCDIR)/$(DOCNAME)
+	$(TEX) $(TEXOPTS) $^
+
+pdfdocs: create_doc $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf)
+	echo $^
+
 all: $(MODULES)
 clean:
+	rm -rf $(DOCBUILD)
 	rm -rf $(WORKDIR)

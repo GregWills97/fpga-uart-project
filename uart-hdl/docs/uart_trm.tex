@@ -1,0 +1,77 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage[urlcolor=blue]{hyperref}
+\usepackage{fontawesome5}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{UART Register TRM}
+\lhead{}
+\rfoot{\thepage}
+
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge \bfseries UART HDL Technical Reference Manual \par}
+    \vspace{2cm}
+    {\Large Version 1.0 \par}
+    \vspace{1cm}
+    {\large \today \par}
+    \vfill
+    {\large Gregory Williams}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Device Operation}
+You can find the HDL for this module in this github repository:
+\href{https://github.com/GregWills97/fpga-uart-project}
+{\textcolor{blue}{GregWills97/fpga-uart-project}} \faGithub
+
+\section{Configuration Registers}
+\subsection{Register Overview}
+This section describes the hardware configuration registers for the UART HDL module.
+
+\subsection{Data Register: UARTDR}
+The UARTDR is the data register for the UART device.
+
+\noindent
+\\To transmit words, the user issues a write to this register. When written to, the data is placed
+into the transmit FIFO and the write address is incremented. Data is automatically prefixed with a
+start bit and appended with parity and stop bits if needed.
+
+\noindent
+\\Received byte reads are performed by issuing a read to the UARTDR register. The read will return data
+from the receive FIFO and increment the FIFO address.
+
+\subsubsection*{Field Description}
+\begin{longtable}{|c|c|c|c|m{7cm}|}
+\hline
+\textbf{Bits} & \textbf{Name} & \textbf{Access} & \textbf{Reset} & \textbf{Description} \\
+\hline
+31:8 & RESERVED & - & 0x0 & Reserved. \\
+\hline
+7:0 & DATA & R/W & 0x00 & Receive (read) data\par Transmit (write) data \\
+\hline
+\end{longtable}
+
+\vspace{1em}
+\noindent\textbf{Notes:}
+\begin{itemize}
+    \item Writes will be ignored if transmit FIFO is full.
+\end{itemize}
+
+\end{document}

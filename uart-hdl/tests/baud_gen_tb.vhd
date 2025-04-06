@@ -8,50 +8,38 @@ end baud_gen_tb;
 architecture Behavioral of baud_gen_tb is
 
 	constant clk_period: time := 8 ns; --125Mhz clk
-	signal clk, rst, s_tick0, s_tick1, s_tick2: std_logic := '0';
+	signal clk, rst: std_logic := '0';
 	signal d_in, d_out: std_logic_vector(7 downto 0) := (others => '0');
-	signal int_div0, int_div1, int_div2: std_logic_vector(15 downto 0) := (others => '0');
-	signal frac_div0, frac_div1, frac_div2: std_logic_vector(5 downto 0) := (others => '0');
-	signal finished0, finished1, finished2: std_logic := '0';
+
+	--signal arrays
+	type slv_int_array is array (0 to 2) of std_logic_vector(15 downto 0);
+	type slv_frac_array is array (0 to 2) of std_logic_vector(5 downto 0);
+	signal int_div: slv_int_array := (others => (others => '0'));
+	signal frac_div: slv_frac_array := (others => (others => '0'));
+	signal s_tick, finished: std_logic_vector(2 downto 0) := (others => '0');
 
 	--baud rate calculations
-	signal tick_count0, tick_count1, tick_count2: integer := 0;
-	signal baud_count0, baud_count1, baud_count2: integer := 0;
+	type int_array is array (0 to 2) of integer;
+	signal tick_count, baud_count: int_array := (others => 0);
 
 	constant sec_divider: integer := 20;
 begin
 
-	baud_gen_uut_0: entity work.baud_generator
-	Port map(
-		clk => clk,
-		rst => rst,
-		int_div => int_div0,
-		frac_div => frac_div0,
-		s_tick => s_tick0
-	);
+	gen_baud_tests: for i in 0 to 2 generate
+		baud_gen_uut_0: entity work.baud_generator
+		Port map(
+			clk => clk,
+			rst => rst,
+			int_div => int_div(i),
+			frac_div => frac_div(i),
+			s_tick => s_tick(i)
+		);
+	end generate gen_baud_tests;
 
-	baud_gen_uut_1: entity work.baud_generator
-	Port map(
-		clk => clk,
-		rst => rst,
-		int_div => int_div1,
-		frac_div => frac_div1,
-		s_tick => s_tick1
-	);
-
-
-	baud_gen_uut_2: entity work.baud_generator
-	Port map(
-		clk => clk,
-		rst => rst,
-		int_div => int_div2,
-		frac_div => frac_div2,
-		s_tick => s_tick2
-	);
 	rst <= '0';
 
 	--clk
-	clk <= not clk after clk_period/2 when (finished0 AND finished1 AND finished2) /= '1' else '0';
+	clk <= not clk after clk_period/2 when finished /= "111" else '0';
 
 	--baud_generator 0
 	process
@@ -62,22 +50,22 @@ begin
 		--125 Mhz clock (125 x 10^6) / (16 * 115200) = 67.81684
 		--integer divisor = 67
 		--fraction divisor = floor(0.81684 * 64 + 0.5) = 52
-		int_div0 <= std_logic_vector(to_unsigned(67, int_div0'length));
-		frac_div0 <= std_logic_vector(to_unsigned(52, frac_div0'length));
+		int_div(0) <= std_logic_vector(to_unsigned(67, 16));
+		frac_div(0) <= std_logic_vector(to_unsigned(52, 6));
 
 		start_time := now;
 		while now < start_time + (1 sec / sec_divider) loop
-			wait until rising_edge(s_tick0);
-			tick_count0 <= tick_count0 + 1;
-			if tick_count0 = 15 then
-				baud_count0 <= baud_count0 + 1;
-				tick_count0 <= 0;
+			wait until rising_edge(s_tick(0));
+			tick_count(0) <= tick_count(0) + 1;
+			if tick_count(0) = 15 then
+				baud_count(0) <= baud_count(0) + 1;
+				tick_count(0) <= (0);
 			end if;
 		end loop;
 
-		report "Baud " & integer'image(baud_desired) & " projected baud ticks: " & integer'image(baud_count0 * sec_divider);
+		report "Baud " & integer'image(baud_desired) & " projected baud ticks: " & integer'image(baud_count(0) * sec_divider);
 
-		finished0 <= '1';
+		finished(0) <= '1';
 		wait;
 	end process;
 
@@ -90,22 +78,22 @@ begin
 		--125 Mhz clock (125 x 10^6) / (16 * 38400) = 203.4505
 		--integer divisor = 203
 		--fraction divisor = floor(0.4505 * 64 + 0.5) = 29
-		int_div1 <= std_logic_vector(to_unsigned(203, int_div1'length));
-		frac_div1 <= std_logic_vector(to_unsigned(29, frac_div1'length));
+		int_div(1) <= std_logic_vector(to_unsigned(203, 16));
+		frac_div(1) <= std_logic_vector(to_unsigned(29, 6));
 
 		start_time := now;
 		while now < start_time + (1 sec / sec_divider) loop
-			wait until rising_edge(s_tick1);
-			tick_count1 <= tick_count1 + 1;
-			if tick_count1 = 15 then
-				baud_count1 <= baud_count1 + 1;
-				tick_count1 <= 0;
+			wait until rising_edge(s_tick(1));
+			tick_count(1) <= tick_count(1) + 1;
+			if tick_count(1) = 15 then
+				baud_count(1) <= baud_count(1) + (1);
+				tick_count(1) <= 0;
 			end if;
 		end loop;
 
-		report "Baud " & integer'image(baud_desired) & " projected baud ticks: " & integer'image(baud_count1 * sec_divider);
+		report "Baud " & integer'image(baud_desired) & " projected baud ticks: " & integer'image(baud_count(1) * sec_divider);
 
-		finished1 <= '1';
+		finished(1) <= '1';
 		wait;
 	end process;
 
@@ -118,22 +106,22 @@ begin
 		--125 Mhz clock (125 x 10^6) / (16 * 9600) = 813.80
 		--integer divisor = 813
 		--fraction divisor = floor(0.802 * 64 + 0.5) = 51
-		int_div2 <= std_logic_vector(to_unsigned(813, int_div2'length));
-		frac_div2 <= std_logic_vector(to_unsigned(51, frac_div2'length));
+		int_div(2) <= std_logic_vector(to_unsigned(813, 16));
+		frac_div(2) <= std_logic_vector(to_unsigned(51, 6));
 
 		start_time := now;
 		while now < start_time + (1 sec / sec_divider) loop
-			wait until rising_edge(s_tick2);
-			tick_count2 <= tick_count2 + 1;
-			if tick_count2 = 15 then
-				baud_count2 <= baud_count2 + 1;
-				tick_count2 <= 0;
+			wait until rising_edge(s_tick(2));
+			tick_count(2) <= tick_count(2) + 1;
+			if tick_count(2) = 15 then
+				baud_count(2) <= baud_count(2) + 1;
+				tick_count(2) <= 0;
 			end if;
 		end loop;
 
-		report "Baud " & integer'image(baud_desired) & " projected baud ticks: " & integer'image(baud_count2 * sec_divider);
+		report "Baud " & integer'image(baud_desired) & " projected baud ticks: " & integer'image(baud_count(2) * sec_divider);
 
-		finished2 <= '1';
+		finished(2) <= '1';
 		wait;
 	end process;
 

@@ -24,7 +24,7 @@ end uart_rx;
 
 architecture Behavioral of uart_rx is
 
-	type state_type is (idle, start, data, parity, stop, frame_recover);
+	type state_type is (idle, start, data, parity, stop, recover);
 	signal state_reg, state_next: state_type;
 
 	signal s_reg, s_next: unsigned(4 downto 0) := (others => '0');		--holds s_tick count
@@ -171,7 +171,7 @@ begin
 						end if;
 
 						if (ferr_reg = '1') OR (rx /= '1') then
-							state_next <= frame_recover;
+							state_next <= recover;
 							frame_error <= '1';
 						else
 							state_next <= idle;
@@ -181,7 +181,7 @@ begin
 					end if;
 				end if;
 
-			when frame_recover =>
+			when recover =>
 				if s_tick = '1' then	--loop until we can go back to idle
 					if s_reg = S_TICKS_PER_BAUD-1 then
 						state_next <= idle;

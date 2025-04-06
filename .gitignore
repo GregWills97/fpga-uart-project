@@ -1,2 +1,3 @@
 *.o
 uart-hdl/docs/build
+uart-hdl/work

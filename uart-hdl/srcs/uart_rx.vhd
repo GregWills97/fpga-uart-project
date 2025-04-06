@@ -6,7 +6,7 @@ use IEEE.NUMERIC_STD.ALL;
 entity uart_rx is
 	Generic(
 		S_TICKS_PER_BAUD: integer := 16;
-		DATA_BITS_MAX: integer := 9);
+		DATA_BITS_MAX: integer := 8);
 	Port(
 		clk:	      in  std_logic;
 		rst:	      in  std_logic;
@@ -17,19 +17,21 @@ entity uart_rx is
 		data_bits:    in  std_logic_vector(3 downto 0);	--possible values of 5,6,7,8,9
 		rx_done:      out std_logic;
 		parity_error: out std_logic;
+		frame_error:  out std_logic;
 		data_out:     out std_logic_vector(DATA_BITS_MAX-1 downto 0)
 	);
 end uart_rx;
 
 architecture Behavioral of uart_rx is
 
-	type state_type is (idle, start, data, parity, stop);
+	type state_type is (idle, start, data, parity, stop, frame_recover);
 	signal state_reg, state_next: state_type;
 
 	signal s_reg, s_next: unsigned(4 downto 0) := (others => '0');		--holds s_tick count
 	signal n_reg, n_next: unsigned(3 downto 0) := (others => '0');		--holds bit count
 	signal b_reg, b_next: std_logic_vector(DATA_BITS_MAX-1 downto 0) := (others => '0'); --holds data_out
 	signal p_reg, p_next: std_logic := '0';					--holds parity bit
+	signal ferr_reg: std_logic := '0';					--holds framing error bit
 
 begin
 
@@ -66,6 +68,7 @@ begin
 		b_next	     <= b_reg;
 		p_next	     <= p_reg;
 		parity_error <= '0';
+		frame_error  <= '0';
 		rx_done	     <= '0';
 
 		case state_reg is
@@ -84,6 +87,7 @@ begin
 						s_next	   <= (others => '0');
 						n_next	   <= (others => '0');
 						b_next	   <= (others => '0');
+						ferr_reg   <= '0';
 
 						--Lock in configuration for receiving
 						if (unsigned(data_bits) >= 5) OR
@@ -139,9 +143,9 @@ begin
 					if s_reg = S_TICKS_PER_BAUD-1 then
 						state_next <= stop;
 						if parity_setting = odd then	--odd parity
-							parity_error <= not (p_reg XOR rx);
+							p_next <= not (p_reg XOR rx);
 						else				--even parity
-							parity_error <= p_reg XOR rx;
+							p_next <= p_reg XOR rx;
 						end if;
 						s_next <= (others => '0');
 					else
@@ -151,11 +155,42 @@ begin
 
 			when stop =>
 				if s_tick = '1' then
+					if stop_bits = '1' then
+						if s_reg = num_stop_ticks/2 - 1 then
+							if rx /= '1' then
+								ferr_reg <= '1';
+							end if;
+						end if;
+					end if;
 					if s_reg = num_stop_ticks - 1 then
-						state_next <= idle;
+						s_next <= (others => '0');
+						--check first stop bit if 2
 						rx_done <= '1';
+						if parity_setting /= none then
+							parity_error <= p_reg;
+						end if;
+
+						if (ferr_reg = '1') OR (rx /= '1') then
+							state_next <= frame_recover;
+							frame_error <= '1';
+						else
+							state_next <= idle;
+						end if;
 					else
 						s_next <= s_reg + 1;
+					end if;
+				end if;
+
+			when frame_recover =>
+				if s_tick = '1' then	--loop until we can go back to idle
+					if s_reg = S_TICKS_PER_BAUD-1 then
+						state_next <= idle;
+					else
+						if rx = '1' then
+							s_next <= s_reg + 1;
+						else
+							s_next <= (others => '0');
+						end if;
 					end if;
 				end if;
 

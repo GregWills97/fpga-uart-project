@@ -20,13 +20,14 @@ $(WORKFILE): $(SRCS) $(TESTS)
 
 analyze: $(WORKFILE)
 
+.SECONDARY: $(MODULES:%=$(WORKDIR)/%_tb)
 $(WORKDIR)/%_tb: $(WORKFILE)
-	$(GHDL) -e $(FLAGS) --work=work --workdir='$(WORKDIR)' \
-	-o $(WORKDIR)/$*_tb $*_tb
+	$(GHDL) -e $(FLAGS) --work=work --workdir='$(WORKDIR)' -o $@ $*_tb
 
 %_run: $(WORKDIR)/%_tb
-	$^
+	$<
 
+.SECONDARY: $(MODULES:%=$(WORKDIR)/%.vcd)
 $(WORKDIR)/%.vcd: $(WORKDIR)/%_tb
 	$^ --vcd=$(WORKDIR)/$*.vcd
 
@@ -44,7 +45,9 @@ $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf): $(DOCDIR)/$(DOCNAME)
 pdfdocs: create_doc $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf)
 	echo $^
 
+
 all: $(MODULES)
+run_all: $(addsuffix _run, $(MODULES))
 clean:
 	rm -rf $(DOCBUILD)
 	rm -rf $(WORKDIR)

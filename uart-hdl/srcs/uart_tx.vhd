@@ -10,6 +10,7 @@ entity uart_tx is
 	Port(
 		clk:	     in  std_logic;
 		rst:	     in  std_logic;
+		en:	     in  std_logic;
 		tx_start:    in  std_logic;
 		s_tick:	     in  std_logic;
 		stop_bits:   in  std_logic;			--0 for 1 stop bit, 1 for 2 stop bits
@@ -41,7 +42,7 @@ begin
 			b_reg	  <= (others => '0');
 			p_reg	  <= '0';
 			tx_reg	  <= '1';
-		elsif rising_edge(clk) then
+		elsif rising_edge(clk) AND en = '1' then
 			state_reg <= state_next;
 			s_reg	  <= s_next;
 			n_reg	  <= n_next;

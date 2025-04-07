@@ -7,7 +7,7 @@ end uart_tx_tb;
 
 architecture Behavioral of uart_tx_tb is
 
-	signal clk, rst, tx_start, s_tick, tx, tx_done, stop_bits: std_logic := '0';
+	signal clk, rst, en, tx_start, s_tick, tx, tx_done, stop_bits: std_logic := '0';
 	signal parity_ctrl: std_logic_vector(1 downto 0) := (others => '0');
 	signal data_bits: std_logic_vector(3 downto 0) := (others => '0');
 	signal data_in: std_logic_vector(8 downto 0) := (others => '0');
@@ -64,6 +64,7 @@ begin
 	Port map(
 		clk	    => clk,
 		rst	    => rst,
+		en	    => en,
 		tx_start    => tx_start,
 		s_tick	    => s_tick,
 		stop_bits   => stop_bits,
@@ -87,8 +88,14 @@ begin
 		type data_array is array (0 to 1) of std_logic_vector(8 downto 0);
 		variable test_data: data_array := ('0' & x"AA", '0' & x"75");
 	begin
-
 		wait for baud_rate;
+		en <= '0';
+		data_bits <= std_logic_vector(to_unsigned(8, data_bits'length));
+		parity_ctrl <= std_logic_vector(to_unsigned(0, parity_ctrl'length));
+		stop_bits <= '0';
+		receive_uart_byte(parity_ctrl, 8, stop_bits, test_data(0), data_in, tx_start);
+		wait for baud_rate;
+		en <= '1';
 
 		for i in test_data'range loop -- test data loop
 		for j in 5 to 9 loop  -- data bit loop

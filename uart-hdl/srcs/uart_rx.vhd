@@ -14,10 +14,11 @@ entity uart_rx is
 		s_tick:	      in  std_logic;
 		stop_bits:    in  std_logic;			--0 for 1 stop bit, 1 for 2 stop bits
 		parity_ctrl:  in  std_logic_vector(1 downto 0);	--0 for off, 10 for even, 01 for odd
-		data_bits:    in  std_logic_vector(3 downto 0);	--possible values of 5,6,7,8,9
+		data_bits:    in  std_logic_vector(3 downto 0);	--possible values of 5,6,7,8
 		rx_done:      out std_logic;
 		parity_error: out std_logic;
 		frame_error:  out std_logic;
+		break_error:  out std_logic;
 		data_out:     out std_logic_vector(DATA_BITS_MAX-1 downto 0)
 	);
 end uart_rx;
@@ -31,7 +32,8 @@ architecture Behavioral of uart_rx is
 	signal n_reg, n_next: unsigned(3 downto 0) := (others => '0');		--holds bit count
 	signal b_reg, b_next: std_logic_vector(DATA_BITS_MAX-1 downto 0) := (others => '0'); --holds data_out
 	signal p_reg, p_next: std_logic := '0';					--holds parity bit
-	signal ferr_reg: std_logic := '0';					--holds framing error bit
+	signal ferr_reg, ferr_next: std_logic := '0';				--holds framing error bit
+	signal berr_reg, berr_next: std_logic := '0';				--holds break error bit
 
 begin
 
@@ -44,12 +46,16 @@ begin
 			n_reg	  <= (others => '0');
 			b_reg	  <= (others => '0');
 			p_reg	  <= '0';
+			ferr_reg  <= '0';
+			berr_reg  <= '0';
 		elsif rising_edge(clk) then
 			state_reg <= state_next;
 			s_reg	  <= s_next;
 			n_reg	  <= n_next;
 			b_reg	  <= b_next;
 			p_reg	  <= p_next;
+			ferr_reg  <= ferr_next;
+			berr_reg  <= berr_next;
 		end if;
 	end process;
 
@@ -67,8 +73,11 @@ begin
 		n_next	     <= n_reg;
 		b_next	     <= b_reg;
 		p_next	     <= p_reg;
+		ferr_next    <= ferr_reg;
+		berr_next    <= berr_reg;
 		parity_error <= '0';
 		frame_error  <= '0';
+		break_error  <= '0';
 		rx_done	     <= '0';
 
 		case state_reg is
@@ -87,7 +96,8 @@ begin
 						s_next	   <= (others => '0');
 						n_next	   <= (others => '0');
 						b_next	   <= (others => '0');
-						ferr_reg   <= '0';
+						ferr_next  <= '0';
+						berr_next  <= '0';
 
 						--Lock in configuration for receiving
 						if (unsigned(data_bits) >= 5) OR
@@ -124,6 +134,7 @@ begin
 						s_next <= (others => '0');
 						b_next(num_dbits-1 downto 0) <= rx & b_reg(num_dbits-1 downto 1);
 						p_next <= rx XOR p_reg;
+						berr_next <= berr_reg OR rx;
 						if n_reg = num_dbits - 1 then
 							if parity_setting /= none then
 								state_next <= parity;
@@ -141,6 +152,7 @@ begin
 			when parity =>
 				if s_tick = '1' then
 					if s_reg = S_TICKS_PER_BAUD-1 then
+						berr_next <= berr_reg OR rx;
 						state_next <= stop;
 						if parity_setting = odd then	--odd parity
 							p_next <= not (p_reg XOR rx);
@@ -157,9 +169,8 @@ begin
 				if s_tick = '1' then
 					if stop_bits = '1' then
 						if s_reg = num_stop_ticks/2 - 1 then
-							if rx /= '1' then
-								ferr_reg <= '1';
-							end if;
+							ferr_next <= not rx;
+							berr_next <= berr_reg OR rx;
 						end if;
 					end if;
 					if s_reg = num_stop_ticks - 1 then
@@ -172,7 +183,8 @@ begin
 
 						if (ferr_reg = '1') OR (rx /= '1') then
 							state_next <= recover;
-							frame_error <= '1';
+							frame_error <= '1' AND berr_reg;
+							break_error <= not berr_reg;
 						else
 							state_next <= idle;
 						end if;

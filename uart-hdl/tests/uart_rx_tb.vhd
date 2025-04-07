@@ -22,7 +22,7 @@ architecture Behavioral of uart_rx_tb is
 			signal data_length: in std_logic_vector(3 downto 0);
 			signal par_ctrl: in std_logic_vector(1 downto 0);
 			signal num_stop: in std_logic;
-			data_in: in std_logic_vector(8 downto 0);
+			data_in: in std_logic_vector(7 downto 0);
 			gen_perr: in boolean;
 			gen_ferr: in boolean;
 			signal tx_line: out std_logic
@@ -112,11 +112,19 @@ begin
 	clk <= not clk after clk_period/2 when finished /= '1' else '0';
 
 	process
-		type data_array is array (0 to 1) of std_logic_vector(8 downto 0);
-		variable test_data: data_array := ('0' & x"AA", '0' & x"75");
+		type data_array is array (0 to 1) of std_logic_vector(7 downto 0);
+		variable test_data: data_array := (x"AA", x"75");
 	begin
 		rx <= '1';
 
+		--test break detection
+		data_bits <= std_logic_vector(to_unsigned(8, data_bits'length));
+		parity_ctrl <= std_logic_vector(to_unsigned(0, parity_ctrl'length));
+		stop_bits <= '0';
+		rx <= '0';
+		wait for baud_rate * (1 + 8 + 1);
+
+		rx <= '1';
 		for i in test_data'range loop -- test data loop
 		for j in 5 to 8 loop  -- data bit loop
 		for k in 0 to 2 loop -- parity config loop

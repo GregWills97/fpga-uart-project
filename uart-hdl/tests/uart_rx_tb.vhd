@@ -8,7 +8,7 @@ end uart_rx_tb;
 
 architecture Behavioral of uart_rx_tb is
 
-	signal clk, rst, rx, s_tick, rx_done, stop_bits, parity_error, frame_error: std_logic := '0';
+	signal clk, rst, en, rx, s_tick, rx_done, stop_bits, parity_error, frame_error: std_logic := '0';
 	signal parity_ctrl: std_logic_vector(1 downto 0) := (others => '0');
 	signal data_bits: std_logic_vector(3 downto 0) := (others => '0');
 	signal data_out: std_logic_vector(7 downto 0) := (others => '0');
@@ -91,6 +91,7 @@ begin
 	Port map(
 		clk	     => clk,
 		rst	     => rst,
+		en	     => en,
 		rx	     => rx,
 		s_tick	     => s_tick,
 		stop_bits    => stop_bits,
@@ -115,12 +116,17 @@ begin
 		type data_array is array (0 to 1) of std_logic_vector(7 downto 0);
 		variable test_data: data_array := (x"AA", x"75");
 	begin
-		rx <= '1';
-
-		--test break detection
+		--test break detection and enable bit
 		data_bits <= std_logic_vector(to_unsigned(8, data_bits'length));
 		parity_ctrl <= std_logic_vector(to_unsigned(0, parity_ctrl'length));
 		stop_bits <= '0';
+		rx <= '1';
+
+		en <= '0';
+		send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(0), false, false, rx);
+		en <= '1';
+		wait for baud_rate;
+
 		rx <= '0';
 		wait for baud_rate * (1 + 8 + 1);
 

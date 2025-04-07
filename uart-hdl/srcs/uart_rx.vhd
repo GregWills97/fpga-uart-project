@@ -10,6 +10,7 @@ entity uart_rx is
 	Port(
 		clk:	      in  std_logic;
 		rst:	      in  std_logic;
+		en:	      in  std_logic;
 		rx:	      in  std_logic;
 		s_tick:	      in  std_logic;
 		stop_bits:    in  std_logic;			--0 for 1 stop bit, 1 for 2 stop bits
@@ -48,7 +49,7 @@ begin
 			p_reg	  <= '0';
 			ferr_reg  <= '0';
 			berr_reg  <= '0';
-		elsif rising_edge(clk) then
+		elsif rising_edge(clk) AND en = '1' then
 			state_reg <= state_next;
 			s_reg	  <= s_next;
 			n_reg	  <= n_next;
@@ -60,7 +61,7 @@ begin
 	end process;
 
 	--next state logic
-	process(state_reg, s_reg, n_reg, b_reg, p_reg, s_tick, rx)
+	process(state_reg, s_reg, n_reg, b_reg, p_reg, ferr_reg, berr_reg, s_tick, rx)
 		type parity_type is (none, even, odd);
 		variable parity_setting: parity_type := none;
 		variable num_stop_ticks: integer := 0;
@@ -167,18 +168,17 @@ begin
 
 			when stop =>
 				if s_tick = '1' then
-					if stop_bits = '1' then
-						if s_reg = num_stop_ticks/2 - 1 then
-							ferr_next <= not rx;
-							berr_next <= berr_reg OR rx;
-						end if;
+					--check first stop bit if 2
+					if (stop_bits = '1') AND (s_reg = num_stop_ticks/2 - 1) then
+						ferr_next <= not rx;
+						berr_next <= berr_reg OR rx;
 					end if;
+
 					if s_reg = num_stop_ticks - 1 then
 						s_next <= (others => '0');
-						--check first stop bit if 2
 						rx_done <= '1';
 						if parity_setting /= none then
-							parity_error <= p_reg;
+							parity_error <= p_reg AND berr_reg;
 						end if;
 
 						if (ferr_reg = '1') OR (rx /= '1') then

@@ -206,11 +206,11 @@ begin
 			if rx_fifo_dout(10 downto 8) /= "000" then
 				report "TEST_ERROR: unexpected error generated for data bits: " &
 					integer'image(j) & " parity control: " & integer'image(k) &
-					" stop bits: 1";
+					"stop bits: " & integer'image(l + 1);
 			elsif rx_fifo_dout(j-1 downto 0) /= test_data(i)(j-1 downto 0) then
 				report "TEST_ERROR: data mismatched for data bits: " &
 					integer'image(j) & " parity control: " & integer'image(k) &
-					" stop bits: 1";
+					"stop bits: " & integer'image(l + 1);
 			end if;
 
 			--test frame error
@@ -219,7 +219,7 @@ begin
 			if rx_fifo_dout(10 downto 8) /= "010" then
 				report "TEST_ERROR: frame error not generated for data bits: " &
 					integer'image(j) & " parity control: " & integer'image(k) &
-					" stop bits: 1";
+					"stop bits: " & integer'image(l + 1);
 			end if;
 
 			--if parity enabled
@@ -230,11 +230,11 @@ begin
 				if rx_fifo_dout(10 downto 8) /= "000" then
 					report "TEST_ERROR: unexpected error generated for data bits: " &
 						integer'image(j) & " parity control: " & integer'image(k) &
-						" stop bits: 1";
+						"stop bits: " & integer'image(l + 1);
 				elsif rx_fifo_dout(j-1 downto 0) /= test_data(i)(j-1 downto 0) then
 					report "TEST_ERROR: data mismatched for data bits: " &
 						integer'image(j) & " parity control: " & integer'image(k) &
-						" stop bits: 1";
+						"stop bits: " & integer'image(l + 1);
 				end if;
 
 				--test frame error
@@ -243,7 +243,7 @@ begin
 				if rx_fifo_dout(10 downto 8) /= "010" then
 					report "TEST_ERROR: frame error not generated for data bits: " &
 						integer'image(j) & " parity control: " & integer'image(k) &
-						" stop bits: 1";
+						"stop bits: " & integer'image(l + 1);
 				end if;
 
 				--test parity error
@@ -252,7 +252,7 @@ begin
 				if rx_fifo_dout(10 downto 8) /= "001" then
 					report "TEST_ERROR: parity error not generated for data bits: " &
 						integer'image(j) & " parity control: " & integer'image(k) &
-						" stop bits: 1";
+						"stop bits: " & integer'image(l + 1);
 				end if;
 
 				--test both, but only frame error should generate
@@ -261,7 +261,7 @@ begin
 				if rx_fifo_dout(10 downto 8) /= "010" then
 					report "TEST_ERROR: errors generated incorrectly for data bits: " &
 						integer'image(j) & " parity control: " & integer'image(k) &
-						" stop bits: 1";
+						"stop bits: " & integer'image(l + 1);
 				end if;
 			end if;
 		end loop;

@@ -1,6 +1,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
+use IEEE.FLOAT_PKG.ALL;
 
 entity baud_gen_tb is
 end baud_gen_tb;
@@ -37,6 +38,8 @@ begin
 		);
 
 		process
+			variable max_error: float32 := to_float(1.56, float32'high); --Maximum possible error
+			variable percent_error: float32 := to_float(0.00, float32'high);
 			variable start_time: time := 0 sec;
 		begin
 
@@ -50,8 +53,19 @@ begin
 				end if;
 			end loop;
 
-			report "Baud " & integer'image(baud_desired(i)) &
-				" projected baud ticks: " & integer'image(baud_count(i) * sec_divider);
+			percent_error := (to_float(baud_desired(i), float32'high) -
+						to_float(baud_count(i) * sec_divider, float32'high)) /
+						to_float(baud_desired(i), float32'high);
+			if percent_error >= abs(max_error) then
+				report "TEST_ERROR: Baud " & integer'image(baud_desired(i)) &
+					" projected baud ticks: " & integer'image(baud_count(i) * sec_divider) &
+					" percent error is above max: " & real'image(to_real(percent_error));
+			else
+				report "TEST_SUCCESS: Baud " & integer'image(baud_desired(i)) &
+					" projected baud ticks: " & integer'image(baud_count(i) * sec_divider) &
+					" percent error is: " & real'image(to_real(percent_error));
+			end if;
+
 			finished(i) <= '1';
 			wait;
 		end process;

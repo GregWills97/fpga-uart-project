@@ -5,7 +5,7 @@ use IEEE.NUMERIC_STD.ALL;
 entity uart_tx is
 	Generic(
 		S_TICKS_PER_BAUD:  integer := 16;
-		DATA_BITS_MAX:  integer := 9
+		DATA_BITS_MAX:  integer := 8
 	);
 	Port(
 		clk:	     in  std_logic;
@@ -29,13 +29,14 @@ architecture Behavioral of uart_tx is
 	signal s_reg, s_next: unsigned(4 downto 0) := (others => '0');		--holds s_tick count
 	signal n_reg, n_next: unsigned(3 downto 0) := (others => '0');		--holds bit count
 	signal b_reg, b_next: std_logic_vector(DATA_BITS_MAX-1 downto 0) := (others => '0');	--holds data_in
-	signal tx_reg, tx_next: std_logic := '0';				--holds output
+	signal tx_reg, tx_next: std_logic := '1';				--holds output
 	signal p_reg, p_next: std_logic := '0';					--holds parity
 
 begin
 
 	--state and data register assignments
-	process(clk,rst) begin if (rst = '1') then
+	process(clk,rst) begin
+		if (rst = '1') then
 			state_reg <= idle;
 			s_reg	  <= (others => '0');
 			n_reg	  <= (others => '0');
@@ -71,7 +72,7 @@ begin
 
 			when idle =>
 				tx_next <= '1';
-				if tx_start = '1' then
+				if tx_start = '1' AND s_tick = '1' then
 					state_next <= start;
 					s_next <= (others => '0');
 					b_next <= (others => '0');

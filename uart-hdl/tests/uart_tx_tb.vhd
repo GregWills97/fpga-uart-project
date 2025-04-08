@@ -95,7 +95,6 @@ begin
 	process
 		type data_array is array (0 to 7) of std_logic_vector(7 downto 0);
 		variable test_data: data_array := (x"DE", x"AD", x"BE", x"EF", x"FE", x"EB", x"DA", x"ED");
-		variable testing_error: boolean := false;
 
 		variable expected_parity: std_logic := '0';
 	begin

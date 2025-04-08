@@ -177,8 +177,13 @@ begin
 					if s_reg = num_stop_ticks - 1 then
 						s_next <= (others => '0');
 						rx_done <= '1';
-						if parity_setting /= none then
-							parity_error <= p_reg AND berr_reg;
+
+						-- break error means no other errors should be generated
+						-- only send frame error, if we dont have a break error
+						-- only send parity error, if there is no break or
+						-- frame error
+						if (parity_setting /= none) AND (rx = '1') then
+							parity_error <= p_reg AND berr_reg AND not ferr_reg;
 						end if;
 
 						if (ferr_reg = '1') OR (rx /= '1') then

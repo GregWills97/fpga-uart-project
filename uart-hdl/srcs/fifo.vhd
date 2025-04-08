@@ -100,6 +100,6 @@ begin
 	d_out <= fifo_regs(to_integer(r_addr));
 
 	--if top 2 bits of current size is set we know that the buffer is 75% full
-	near_full <= (curr_size(DEPTH-1) AND curr_size(DEPTH-2)) OR full_flag;
+	near_full <= (curr_size(DEPTH-1) AND curr_size(DEPTH-2));
 
 end Behavioral;

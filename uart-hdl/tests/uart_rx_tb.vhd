@@ -99,15 +99,6 @@ architecture Behavioral of uart_rx_tb is
 		rd <= '0';
 	end read_fifo;
 
-	function to_bin_string(slv : std_logic_vector) return string is
-		variable result : string(1 to slv'length);
-	begin
-		for i in slv'range loop
-			result(slv'length - i) := character'value(std_logic'image(slv(i)));
-		end loop;
-		return result;
-	end;
-
 begin
 
 	baud_gen_uut: entity work.baud_generator

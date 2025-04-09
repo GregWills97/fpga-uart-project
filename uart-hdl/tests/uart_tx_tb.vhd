@@ -145,8 +145,6 @@ begin
 						report "TEST_ERROR: transmitter sent incorrect parity bit for data_bits: " &
 							integer'image(i) & " parity control: " & integer'image(j) &
 							" stop bits: " & integer'image(k + 1);
-						report "TEST_ERROR: expect: " & std_logic'image(expected_parity) &
-							" got: " & std_logic'image(tx);
 					end if;
 				elsif j = 2 then --even parity
 					wait for baud_rate;

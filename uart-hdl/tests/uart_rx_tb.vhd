@@ -10,7 +10,6 @@ architecture Behavioral of uart_rx_tb is
 
 	--top-level signals
 	signal clk, rst: std_logic := '0';
-	signal data_out: std_logic_vector(7 downto 0) := (others => '0');
 	constant clk_period: time := 8 ns; --125Mhz clk
 	constant baud_rate: time := 8.68 us; --115200 baud
 	signal finished: std_logic := '0';

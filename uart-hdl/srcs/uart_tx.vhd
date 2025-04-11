@@ -54,7 +54,7 @@ begin
 	end process;
 
 	--next state logic;
-	process(state_reg, s_reg, n_reg, b_reg, p_reg, s_tick, tx_reg, tx_start, data_in)
+	process(state_reg, s_reg, n_reg, b_reg, p_reg, s_tick, tx_reg, tx_start, data_bits, parity_ctrl, stop_bits, data_in)
 		type parity_type is (none, even, odd);
 		variable parity_setting: parity_type := none;
 		variable num_stop_ticks: integer := 0;

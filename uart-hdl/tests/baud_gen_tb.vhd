@@ -10,7 +10,6 @@ architecture Behavioral of baud_gen_tb is
 
 	constant clk_period: time := 8 ns; --125Mhz clk
 	signal clk, rst: std_logic := '0';
-	signal d_in, d_out: std_logic_vector(7 downto 0) := (others => '0');
 
 	--signal arrays
 	type slv_int_array is array (0 to 3) of std_logic_vector(15 downto 0);

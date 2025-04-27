@@ -10,13 +10,15 @@
 \usepackage{booktabs}
 \usepackage[urlcolor=blue]{hyperref}
 \usepackage{fontawesome5}
+\usepackage{float}
+\usepackage{chngcntr}
 
 \pagestyle{fancy}
 \fancyhf{}
 \rhead{UART Register TRM}
 \lhead{}
 \rfoot{\thepage}
-
+\counterwithin{table}{section}
 \titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
 
 \begin{document}
@@ -45,28 +47,59 @@ You can find the HDL for this module in this github repository:
 \subsection{Register Overview}
 This section describes the hardware configuration registers for the UART HDL module.
 
+% UARTDR REGISTER
 \subsection{Data Register: UARTDR}
 The UARTDR is the data register for the UART device.
 
-\noindent
-\\To transmit words, the user issues a write to this register. When written to, the data is placed
+\noindent\\
+To transmit words, the user issues a write to this register. When written to, the data is placed
 into the transmit FIFO and the write address is incremented. Data is automatically prefixed with a
 start bit and appended with parity and stop bits if needed.
 
-\noindent
-\\Received byte reads are performed by issuing a read to the UARTDR register. The read will return data
-from the receive FIFO and increment the FIFO address.
+\noindent\\
+Received byte reads are performed by issuing a read to the UARTDR register. The read will return
+data from the receive FIFO and increment the FIFO address along with any errors associated with that
+character. A write to bits 7:0 of this register clears the error bits.
+
+\noindent\\
+The receiver detects the following errors:
+\begin{itemize}
+\item\textbf{Overrun Error}: when HIGH indicates that the rx fifo is full and data was received.
+
+\item\textbf{Break Error}: when HIGH indicates that the rx input has been held LOW for longer than a
+full-word transmission.
+
+\item\textbf{Parity Error}: when HIGH indicates that the parity of the data character does not
+match the parity indicated by the parity setting in the LCTRL register.
+
+\item\textbf{Framing Error}: when HIGH indicates invalid stop bit.
+\end{itemize}
 
 \subsubsection*{Field Description}
-\begin{longtable}{|c|c|c|c|m{7cm}|}
+\renewcommand{\arraystretch}{1.5}
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|m{8cm}|}
 \hline
 \textbf{Bits} & \textbf{Name} & \textbf{Access} & \textbf{Reset} & \textbf{Description} \\
 \hline
-31:8 & RESERVED & - & 0x0 & Reserved. \\
+31:12 & RESERVED & - & 0x0 & Reserved. \\
 \hline
-7:0 & DATA & R/W & 0x00 & Receive (read) data\par Transmit (write) data \\
+11 & OE & R & 0x0 & Overrun error bit, set HIGH when rx fifo is full.\\
 \hline
-\end{longtable}
+10 & BE & R & 0x0 & Break error bit, set HIGH when break error detected.\\
+\hline
+9 & PE & R & 0x0 & Parity error bit, set HIGH when parity error detected.\\
+\hline
+8 & FE & R & 0x0 & Framing error bit, set HIGH when framing error detected.\\
+\hline
+7:0 & DATA & R/W & 0x00 &
+READ: data from rx fifo is returned.\par
+WRITE: data written is put on the tx line.\\
+\hline
+\end{tabular}
+\caption{UARTDR Field Description}\label{tab:UARTDR}
+\end{table}
 
 \vspace{1em}
 \noindent\textbf{Notes:}

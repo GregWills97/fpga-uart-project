@@ -70,7 +70,7 @@ architecture Behavioral of axil_control is
 
 	-- slave registers
 	-- UART DR
-	signal data_reg, data_next: std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
+	-- there is no actual register here, writes and reads go directly to external fifos
 
 	-- UART LCTRL
 	signal lctrl_reg, lctrl_next: std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
@@ -118,7 +118,6 @@ begin
 				axil_write_ready <= '0';
 				axil_bvalid <= '0';
 
-				data_reg <= (others => '0');
 				lctrl_reg <= (others => '0');
 			else
 				axil_bvalid <= axil_bvalid_next;
@@ -127,7 +126,8 @@ begin
 				if axil_write_ready = '1' then
 					case axil_awaddr is
 					when b"00" =>
-						data_reg <= data_next;
+					-- No register here, write will go directly to txfifo
+						null;
 					when b"01" =>
 						lctrl_reg <= lctrl_next;
 					when others =>
@@ -140,7 +140,7 @@ begin
 
 	--write control next state logic
 	process(S_AXI_AWVALID, axil_wdata, S_AXI_WVALID, axil_wstrb, axil_write_ready,
-		S_AXI_BREADY, axil_bvalid, data_reg, lctrl_reg)
+		S_AXI_BREADY, axil_bvalid, lctrl_reg)
 	begin
 		if axil_write_ready = '1' then
 			axil_bvalid_next <= '1';
@@ -152,7 +152,8 @@ begin
 					 (S_AXI_AWVALID AND S_AXI_WVALID) AND
 					 ((not axil_bvalid) OR S_AXI_BREADY);
 
-		data_next <= apply_wstrb(data_reg, axil_wdata, axil_wstrb);
+		--programmable registers
+		tx_fifo_data <= apply_wstrb(axil_wdata, axil_wdata, axil_wstrb)(7 downto 0);
 		lctrl_next <= apply_wstrb(lctrl_reg, axil_wdata, axil_wstrb);
 	end process;
 
@@ -180,8 +181,8 @@ begin
 
 				if ((not axil_rvalid) OR S_AXI_RREADY) = '1' then
 					case axil_araddr is
-					when b"00" =>
-						axil_rdata <= data_reg;
+					--when b"00" =>
+					--	axil_rdata <= data_reg;
 					when b"01" =>
 						axil_rdata <= lctrl_reg;
 					when others =>
@@ -201,5 +202,8 @@ begin
 			axil_rvalid_next <= '0';
 		end if;
 	end process;
+
+	-- output logic
+	tx_fifo_wr <= '1' when axil_write_ready = '1' AND axil_awaddr = b"00" else '0';
 
 end Behavioral;

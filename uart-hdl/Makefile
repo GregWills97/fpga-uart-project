@@ -1,8 +1,8 @@
 GHDL := ghdl
 GTKW := gtkwave
-SRCS = srcs/baud_gen.vhd srcs/uart_rx.vhd srcs/uart_tx.vhd srcs/fifo.vhd
-TESTS = tests/baud_gen_tb.vhd tests/uart_rx_tb.vhd tests/uart_tx_tb.vhd tests/fifo_tb.vhd
-FLAGS = -O3 --std=08
+SRCS = $(wildcard srcs/*.vhd)
+TESTS = $(wildcard tests/*.vhd)
+FLAGS = -O3 --std=08 -fexplicit -Wall
 WORKDIR= $(PWD)/work
 WORKFILE = $(WORKDIR)/work-obj93.cf
 
@@ -12,7 +12,7 @@ DOCNAME = uart_trm.tex
 DOCDIR = $(PWD)/docs
 DOCBUILD = $(DOCDIR)/build
 
-MODULES = baud_gen uart_rx uart_tx fifo
+MODULES = baud_gen uart_rx uart_tx fifo axil_control_interface
 
 $(WORKFILE): $(SRCS) $(TESTS)
 	mkdir -p $(WORKDIR)

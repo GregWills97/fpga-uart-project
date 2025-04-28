@@ -12,7 +12,7 @@ DOCNAME = uart_trm.tex
 DOCDIR = $(PWD)/docs
 DOCBUILD = $(DOCDIR)/build
 
-MODULES = baud_gen uart_rx uart_tx fifo axil_control_interface
+MODULES = baud_gen uart_rx uart_tx fifo axil_control
 
 $(WORKFILE): $(SRCS) $(TESTS)
 	mkdir -p $(WORKDIR)

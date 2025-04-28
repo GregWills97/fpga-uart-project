@@ -43,8 +43,6 @@ $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf): $(DOCDIR)/$(DOCNAME)
 	$(TEX) $(TEXOPTS) $^
 
 pdfdocs: create_doc $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf)
-	echo $^
-
 
 all: $(MODULES)
 run_all: $(addsuffix _run, $(MODULES))

@@ -176,12 +176,12 @@ begin
 
 				if ((not axil_rvalid) OR S_AXI_RREADY) = '1' then
 					case axil_araddr is
-						when b"00" =>
-							axil_rdata <= data_reg;
-						when b"01" =>
-							axil_rdata <= lctrl_reg;
-						when others =>
-							null;
+					when b"00" =>
+						axil_rdata <= data_reg;
+					when b"01" =>
+						axil_rdata <= lctrl_reg;
+					when others =>
+						null;
 					end case;
 				end if;
 			end if;

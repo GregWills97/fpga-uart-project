@@ -125,9 +125,7 @@ begin
 
 				if axil_write_ready = '1' then
 					case axil_awaddr is
-					when b"00" =>
-					-- No register here, write will go directly to txfifo
-						null;
+					-- No register for "00", write will go directly to txfifo
 					when b"01" =>
 						lctrl_reg <= lctrl_next;
 					when others =>
@@ -181,8 +179,9 @@ begin
 
 				if ((not axil_rvalid) OR S_AXI_RREADY) = '1' then
 					case axil_araddr is
-					--when b"00" =>
-					--	axil_rdata <= data_reg;
+					when b"00" =>
+						axil_rdata <= (C_S_AXI_DATA_WIDTH-1 downto 12 => '0')
+							      & rx_fifo_data;
 					when b"01" =>
 						axil_rdata <= lctrl_reg;
 					when others =>
@@ -205,5 +204,6 @@ begin
 
 	-- output logic
 	tx_fifo_wr <= '1' when axil_write_ready = '1' AND axil_awaddr = b"00" else '0';
+	rx_fifo_rd <= '1' when axil_read_ready  = '1' AND axil_araddr = b"00" else '0';
 
 end Behavioral;

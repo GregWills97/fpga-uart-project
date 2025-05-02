@@ -18,7 +18,6 @@ entity uart_tx is
 		data_bits:   in  std_logic_vector(3 downto 0);	--possible values of 5,6,7,8,9
 		data_in:     in  std_logic_vector(DATA_BITS_MAX-1 downto 0);
 		tx_done:     out std_logic;
-		tx_busy:     out std_logic;
 		tx:	     out std_logic
 	);
 end uart_tx;
@@ -167,7 +166,6 @@ begin
 	end process;
 
 	--output logic
-	tx_busy <= '0' when state_reg = idle else '1';
 	tx <= tx_reg;
 
 end Behavioral;

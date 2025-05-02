@@ -19,7 +19,7 @@ architecture Behavioral of uart_tx_tb is
 	signal s_tick: std_logic := '0';
 
 	--tx signals
-	signal tx, tx_busy, tx_done, tx_start, tx_enable: std_logic := '0';
+	signal tx, tx_done, tx_start, tx_enable: std_logic := '0';
 
 	signal parity_ctrl: std_logic_vector(1 downto 0) := (others => '0');
 	signal data_bits: std_logic_vector(3 downto 0) := (others => '0');
@@ -63,7 +63,6 @@ begin
 		data_bits   => data_bits,
 		data_in	    => tx_fifo_dout,
 		tx_done	    => tx_done,
-		tx_busy	    => tx_busy,
 		tx	    => tx
 	);
 

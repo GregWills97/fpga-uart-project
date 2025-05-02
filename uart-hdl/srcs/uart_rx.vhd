@@ -15,7 +15,7 @@ entity uart_rx is
 		s_tick:	      in  std_logic;
 		stop_bits:    in  std_logic;			--0 for 1 stop bit, 1 for 2 stop bits
 		parity_ctrl:  in  std_logic_vector(1 downto 0);	--0 for off, 10 for even, 01 for odd
-		data_bits:    in  std_logic_vector(3 downto 0);	--possible values of 5,6,7,8
+		data_bits:    in  std_logic_vector(1 downto 0);	--possible values of 5,6,7,8
 		rx_done:      out std_logic;
 		parity_error: out std_logic;
 		frame_error:  out std_logic;
@@ -61,7 +61,8 @@ begin
 	end process;
 
 	--next state logic
-	process(state_reg, s_reg, n_reg, b_reg, p_reg, ferr_reg, berr_reg, data_bits, parity_ctrl, stop_bits, s_tick, rx)
+	process(state_reg, s_reg, n_reg, b_reg, p_reg, ferr_reg, berr_reg,
+		data_bits, parity_ctrl, stop_bits, s_tick, rx)
 		type parity_type is (none, even, odd);
 		variable parity_setting: parity_type := none;
 		variable num_stop_ticks: integer := 0;
@@ -101,12 +102,18 @@ begin
 						berr_next  <= '0';
 
 						--Lock in configuration for receiving
-						if (unsigned(data_bits) >= 5) OR
-							(unsigned(data_bits) <= 9) then
-							num_dbits := to_integer(unsigned(data_bits));
-						else
-							num_dbits := 8;
-						end if;
+						case data_bits is
+							when "00" =>
+								num_dbits := 5;
+							when "01" =>
+								num_dbits := 6;
+							when "10" =>
+								num_dbits := 7;
+							when "11" =>
+								num_dbits := 8;
+							when others =>
+								num_dbits := 8;
+						end case;
 
 						if (parity_ctrl = "01") then
 							parity_setting := odd;

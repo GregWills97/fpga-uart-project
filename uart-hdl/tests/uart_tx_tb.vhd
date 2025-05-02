@@ -22,7 +22,7 @@ architecture Behavioral of uart_tx_tb is
 	signal tx, tx_done, tx_start, tx_enable: std_logic := '0';
 
 	signal parity_ctrl: std_logic_vector(1 downto 0) := (others => '0');
-	signal data_bits: std_logic_vector(3 downto 0) := (others => '0');
+	signal data_bits: std_logic_vector(1 downto 0) := (others => '0');
 	signal stop_bits: std_logic := '0';
 
 	--tx fifo signals
@@ -101,7 +101,16 @@ begin
 		for i in 5 to 8 loop -- data bit loop
 		for j in 0 to 2 loop -- parity config loop
 		for k in 0 to 1 loop -- stop bit config
-			data_bits <= std_logic_vector(to_unsigned(i, data_bits'length));
+			case i is
+				when 5 =>
+					data_bits <= "00";
+				when 6 =>
+					data_bits <= "01";
+				when 7 =>
+					data_bits <= "10";
+				when 8 =>
+					data_bits <= "11";
+			end case;
 			parity_ctrl <= std_logic_vector(to_unsigned(j, parity_ctrl'length));
 			if k = 0 then
 				stop_bits <= '0';

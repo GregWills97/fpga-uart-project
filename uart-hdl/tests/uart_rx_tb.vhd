@@ -25,7 +25,7 @@ architecture Behavioral of uart_rx_tb is
 	signal parity_error, frame_error, break_error: std_logic := '0';
 
 	signal parity_ctrl: std_logic_vector(1 downto 0) := (others => '0');
-	signal data_bits: std_logic_vector(3 downto 0) := (others => '0');
+	signal data_bits: std_logic_vector(1 downto 0) := (others => '0');
 	signal stop_bits: std_logic := '0';
 
 	--rx fifo signals
@@ -34,7 +34,7 @@ architecture Behavioral of uart_rx_tb is
 	signal full, near_full, empty: std_logic := '0';
 
 	procedure send_uart_byte (
-			signal data_length: in std_logic_vector(3 downto 0);
+			signal data_length: in std_logic_vector(1 downto 0);
 			signal par_ctrl: in std_logic_vector(1 downto 0);
 			signal num_stop: in std_logic;
 			data_in: in std_logic_vector(7 downto 0);
@@ -44,6 +44,7 @@ architecture Behavioral of uart_rx_tb is
 		) is
 			variable parity_bit: std_logic;
 			variable gen_err_bit: std_logic;
+			variable num_bits: integer;
 	begin
 		wait for baud_rate;
 		parity_bit := '0';
@@ -51,8 +52,21 @@ architecture Behavioral of uart_rx_tb is
 		--start bit
 		tx_line <= '0';
 		wait for baud_rate;
+
+		case data_length is
+			when "00" =>
+				num_bits := 5;
+			when "01" =>
+				num_bits := 6;
+			when "10" =>
+				num_bits := 7;
+			when "11" =>
+				num_bits := 8;
+			when others =>
+				num_bits := 8;
+		end case;
 		-- data bits
-		for i in 0 to to_integer(unsigned(data_length)) - 1 loop
+		for i in 0 to num_bits-1 loop
 			parity_bit := parity_bit XOR data_in(i);
 			tx_line <= data_in(i);
 			wait for baud_rate;
@@ -158,7 +172,7 @@ begin
 		variable test_data: data_array := (x"AA", x"75");
 	begin
 		--test break detection and enable bit
-		data_bits <= std_logic_vector(to_unsigned(8, data_bits'length));
+		data_bits <= "11";
 		parity_ctrl <= std_logic_vector(to_unsigned(0, parity_ctrl'length));
 		stop_bits <= '0';
 		rx <= '1';
@@ -191,7 +205,16 @@ begin
 		for j in 5 to 8 loop  -- data bit loop
 		for k in 0 to 2 loop -- parity config loop
 		for l in 0 to 1 loop -- stop config
-			data_bits <= std_logic_vector(to_unsigned(j, data_bits'length));
+			case j is
+				when 5 =>
+					data_bits <= "00";
+				when 6 =>
+					data_bits <= "01";
+				when 7 =>
+					data_bits <= "10";
+				when 8 =>
+					data_bits <= "11";
+			end case;
 			parity_ctrl <= std_logic_vector(to_unsigned(k, parity_ctrl'length));
 			if l = 0 then
 				stop_bits <= '0'; -- 1 stop bit
@@ -205,11 +228,11 @@ begin
 			if rx_fifo_dout(10 downto 8) /= "000" then
 				report "TEST_ERROR: unexpected error generated for data bits: " &
 					integer'image(j) & " parity control: " & integer'image(k) &
-					"stop bits: " & integer'image(l + 1);
+					" stop bits: " & integer'image(l + 1);
 			elsif rx_fifo_dout(j-1 downto 0) /= test_data(i)(j-1 downto 0) then
 				report "TEST_ERROR: data mismatched for data bits: " &
 					integer'image(j) & " parity control: " & integer'image(k) &
-					"stop bits: " & integer'image(l + 1);
+					" stop bits: " & integer'image(l + 1);
 			end if;
 
 			--test frame error
@@ -218,7 +241,7 @@ begin
 			if rx_fifo_dout(10 downto 8) /= "010" then
 				report "TEST_ERROR: frame error not generated for data bits: " &
 					integer'image(j) & " parity control: " & integer'image(k) &
-					"stop bits: " & integer'image(l + 1);
+					" stop bits: " & integer'image(l + 1);
 			end if;
 
 			--if parity enabled
@@ -229,11 +252,11 @@ begin
 				if rx_fifo_dout(10 downto 8) /= "000" then
 					report "TEST_ERROR: unexpected error generated for data bits: " &
 						integer'image(j) & " parity control: " & integer'image(k) &
-						"stop bits: " & integer'image(l + 1);
+						" stop bits: " & integer'image(l + 1);
 				elsif rx_fifo_dout(j-1 downto 0) /= test_data(i)(j-1 downto 0) then
 					report "TEST_ERROR: data mismatched for data bits: " &
 						integer'image(j) & " parity control: " & integer'image(k) &
-						"stop bits: " & integer'image(l + 1);
+						" stop bits: " & integer'image(l + 1);
 				end if;
 
 				--test frame error
@@ -242,7 +265,7 @@ begin
 				if rx_fifo_dout(10 downto 8) /= "010" then
 					report "TEST_ERROR: frame error not generated for data bits: " &
 						integer'image(j) & " parity control: " & integer'image(k) &
-						"stop bits: " & integer'image(l + 1);
+						" stop bits: " & integer'image(l + 1);
 				end if;
 
 				--test parity error
@@ -251,7 +274,7 @@ begin
 				if rx_fifo_dout(10 downto 8) /= "001" then
 					report "TEST_ERROR: parity error not generated for data bits: " &
 						integer'image(j) & " parity control: " & integer'image(k) &
-						"stop bits: " & integer'image(l + 1);
+						" stop bits: " & integer'image(l + 1);
 				end if;
 
 				--test both, but only frame error should generate
@@ -260,7 +283,7 @@ begin
 				if rx_fifo_dout(10 downto 8) /= "010" then
 					report "TEST_ERROR: errors generated incorrectly for data bits: " &
 						integer'image(j) & " parity control: " & integer'image(k) &
-						"stop bits: " & integer'image(l + 1);
+						" stop bits: " & integer'image(l + 1);
 				end if;
 			end if;
 		end loop;

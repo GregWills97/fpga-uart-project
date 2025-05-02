@@ -15,7 +15,7 @@ entity uart_tx is
 		s_tick:	     in  std_logic;
 		stop_bits:   in  std_logic;			--0 for 1 stop bit, 1 for 2 stop bits
 		parity_ctrl: in  std_logic_vector(1 downto 0);	--0 for off, 10 for even, 01 for odd
-		data_bits:   in  std_logic_vector(3 downto 0);	--possible values of 5,6,7,8,9
+		data_bits:   in  std_logic_vector(1 downto 0);	--possible values of 5,6,7,8
 		data_in:     in  std_logic_vector(DATA_BITS_MAX-1 downto 0);
 		tx_done:     out std_logic;
 		tx:	     out std_logic
@@ -54,7 +54,8 @@ begin
 	end process;
 
 	--next state logic;
-	process(state_reg, s_reg, n_reg, b_reg, p_reg, s_tick, tx_reg, tx_start, data_bits, parity_ctrl, stop_bits, data_in)
+	process(state_reg, s_reg, n_reg, b_reg, p_reg, s_tick, tx_reg, tx_start,
+		data_bits, parity_ctrl, stop_bits, data_in)
 		type parity_type is (none, even, odd);
 		variable parity_setting: parity_type := none;
 		variable num_stop_ticks: integer := 0;
@@ -89,12 +90,18 @@ begin
 						p_next <= '0';
 
 						--lock in configuration
-						if (unsigned(data_bits) >= 5) OR
-							(unsigned(data_bits) <= 9) then
-							num_dbits := to_integer(unsigned(data_bits));
-						else
-							num_dbits := 8;
-						end if;
+						case data_bits is
+							when "00" =>
+								num_dbits := 5;
+							when "01" =>
+								num_dbits := 6;
+							when "10" =>
+								num_dbits := 7;
+							when "11" =>
+								num_dbits := 8;
+							when others =>
+								num_dbits := 8;
+						end case;
 
 						if (parity_ctrl = "01") then
 							parity_setting := odd;

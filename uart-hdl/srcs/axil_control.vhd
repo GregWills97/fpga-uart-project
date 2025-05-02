@@ -7,7 +7,7 @@ entity axil_control is
 		-- Width of S_AXI data bus
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		-- Width of S_AXI address bus
-		C_S_AXI_ADDR_WIDTH	: integer	:= 4);
+		C_S_AXI_ADDR_WIDTH	: integer	:= 5);
 	port (
 		-- AXI signals
 		S_AXI_ACLK	: in  std_logic;
@@ -35,11 +35,38 @@ entity axil_control is
 		S_AXI_ARPROT	: in  std_logic_vector(2 downto 0);
 
 		-- Control signals
-		-- data register UARTDR
-		rx_fifo_data	: in  std_logic_vector(11 downto 0); -- rx-fifo data including errors
+		-- UARTDR (data register)
+		rx_fifo_data	: in  std_logic_vector(11 downto 0); --rx-fifo data including status
 		rx_fifo_rd	: out std_logic;
 		tx_fifo_data	: out std_logic_vector(7 downto 0);
-		tx_fifo_wr	: out std_logic
+		tx_fifo_wr	: out std_logic;
+
+		-- UARTFR (flag register)
+		rx_fifo_empty	: in  std_logic;
+		rx_fifo_full	: in  std_logic;
+		tx_fifo_empty	: in  std_logic;
+		tx_fifo_full	: in  std_logic;
+		tx_busy		: in  std_logic;
+		tx_cts		: in  std_logic;
+
+		-- UARTIBRD (baud rate divisor integer part)
+		baud_int_div	: out std_logic_vector(15 downto 0);
+
+		-- UARTFBRD (baud rate divisor fractional part)
+		baud_frac_div	: out std_logic_vector(5 downto 0);
+
+		-- UARTLCR (line control register)
+		break_gen	: out std_logic;
+		stop_bits	: out std_logic;
+		parity_config	: out std_logic_vector(1 downto 0);
+		data_bits	: out std_logic_vector(1 downto 0);
+
+		-- UARTCTRL (control register)
+		flow_ctrl_enable: out std_logic;
+		rts		: out std_logic;
+		rx_enable	: out std_logic;
+		tx_enable	: out std_logic;
+		uart_enable	: out std_logic
 	);
 end axil_control;
 
@@ -69,11 +96,23 @@ architecture Behavioral of axil_control is
 	signal axil_rvalid, axil_rvalid_next: std_logic := '0';
 
 	-- slave registers
-	-- UART DR
+	-- UART DR (data register)
 	-- there is no actual register here, writes and reads go directly to external fifos
 
-	-- UART LCTRL
-	signal lctrl_reg, lctrl_next: std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
+	-- UART FR (flag register)
+	-- there is no actual register here, read only address returns flags
+
+	-- UART IBRD (Baud rate divisor - integer part)
+	signal ibrd_reg, ibrd_next: std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
+
+	-- UART FBRD (Baud rate divisor - fractional part)
+	signal fbrd_reg, fbrd_next: std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
+
+	-- UART LCR (Line control register)
+	signal lcr_reg, lcr_next: std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
+
+	-- UART CTRL (Control register)
+	signal ctrl_reg, ctrl_next: std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
 
 	-- function to apply write strobe to slave registers
 	function apply_wstrb (
@@ -118,16 +157,30 @@ begin
 				axil_write_ready <= '0';
 				axil_bvalid <= '0';
 
-				lctrl_reg <= (others => '0');
+				ibrd_reg <= (others => '0');
+				fbrd_reg <= (others => '0');
+				lcr_reg  <= (others => '0');
+				ctrl_reg <= (others => '0');
 			else
 				axil_bvalid <= axil_bvalid_next;
 				axil_write_ready <= axil_write_ready_next;
 
 				if axil_write_ready = '1' then
 					case axil_awaddr is
-					-- No register for "00", write will go directly to txfifo
-					when b"01" =>
-						lctrl_reg <= lctrl_next;
+					-- No register for "000", write will go directly to txfifo
+					-- No register for "001", it is read only flag register
+					when "010" =>
+						-- baud rate integer register
+						ibrd_reg <= ibrd_next;
+					when "011" =>
+						-- baud rate fractional register
+						fbrd_reg <= fbrd_next;
+					when "100" =>
+						-- line control register
+						lcr_reg <= lcr_next;
+					when "101" =>
+						-- control register
+						ctrl_reg <= ctrl_next;
 					when others =>
 						null;
 					end case;
@@ -138,7 +191,7 @@ begin
 
 	--write control next state logic
 	process(S_AXI_AWVALID, axil_wdata, S_AXI_WVALID, axil_wstrb, axil_write_ready,
-		S_AXI_BREADY, axil_bvalid, lctrl_reg)
+		S_AXI_BREADY, axil_bvalid, ibrd_reg, fbrd_reg, lcr_reg, ctrl_reg)
 	begin
 		if axil_write_ready = '1' then
 			axil_bvalid_next <= '1';
@@ -152,7 +205,14 @@ begin
 
 		--programmable registers
 		tx_fifo_data <= apply_wstrb(axil_wdata, axil_wdata, axil_wstrb)(7 downto 0);
-		lctrl_next <= apply_wstrb(lctrl_reg, axil_wdata, axil_wstrb);
+		ibrd_next <= (C_S_AXI_DATA_WIDTH-1 downto 16 => '0')
+			     & apply_wstrb(ibrd_reg, axil_wdata, axil_wstrb)(15 downto 0);
+		fbrd_next <= (C_S_AXI_DATA_WIDTH-1 downto 6 => '0')
+			     & apply_wstrb(fbrd_reg, axil_wdata, axil_wstrb)(5 downto 0);
+		lcr_next  <= (C_S_AXI_DATA_WIDTH-1 downto 6 => '0')
+			     & apply_wstrb(lcr_reg, axil_wdata, axil_wstrb)(5 downto 0);
+		ctrl_next <= (C_S_AXI_DATA_WIDTH-1 downto 5 => '0')
+			     & apply_wstrb(ctrl_reg, axil_wdata, axil_wstrb)(4 downto 0);
 	end process;
 
 	--read signal hookup
@@ -179,11 +239,31 @@ begin
 
 				if ((not axil_rvalid) OR S_AXI_RREADY) = '1' then
 					case axil_araddr is
-					when b"00" =>
+					when b"000" =>
+						-- UARTDR (data register)
 						axil_rdata <= (C_S_AXI_DATA_WIDTH-1 downto 12 => '0')
 							      & rx_fifo_data;
-					when b"01" =>
-						axil_rdata <= lctrl_reg;
+					when b"001" =>
+						-- UARTFR (flag register)
+						axil_rdata <= (C_S_AXI_DATA_WIDTH-1 downto 6 => '0')
+							      & rx_fifo_empty
+							      & rx_fifo_full
+							      & tx_fifo_empty
+							      & tx_fifo_full
+							      & tx_busy
+							      & tx_cts;
+					when b"010" =>
+						-- UARTIBRD (baud rate divisor integer)
+						axil_rdata <= ibrd_reg;
+					when b"011" =>
+						-- UARTFBRD (baud rate divisor fractional)
+						axil_rdata <= fbrd_reg;
+					when b"100" =>
+						-- UARTLCR (line control register)
+						axil_rdata <= lcr_reg;
+					when b"101" =>
+						-- UARTCTRL (control register)
+						axil_rdata <= ctrl_reg;
 					when others =>
 						null;
 					end case;
@@ -203,7 +283,25 @@ begin
 	end process;
 
 	-- output logic
+	--data register
 	tx_fifo_wr <= '1' when axil_write_ready = '1' AND axil_awaddr = b"00" else '0';
 	rx_fifo_rd <= '1' when axil_read_ready  = '1' AND axil_araddr = b"00" else '0';
+
+	--baud rate registers
+	baud_int_div  <= ibrd_reg;
+	baud_frac_div <= fbrd_reg;
+
+	--line control register
+	data_bits     <= lcr_reg(5 downto 4);
+	stop_bits     <= lcr_reg(3);
+	parity_config <= lcr_reg(2 downto 1);
+	break_gen     <= lcr_reg(0);
+
+	--control register
+	flow_ctrl_enable <= ctrl_reg(4);
+	rts		 <= ctrl_reg(3);
+	rx_enable	 <= ctrl_reg(2);
+	tx_enable    	 <= ctrl_reg(1);
+	uart_enable	 <= ctrl_reg(0);
 
 end Behavioral;

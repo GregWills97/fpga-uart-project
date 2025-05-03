@@ -7,66 +7,67 @@ entity axil_control is
 		-- Width of S_AXI data bus
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		-- Width of S_AXI address bus
-		C_S_AXI_ADDR_WIDTH	: integer	:= 5);
+		C_S_AXI_ADDR_WIDTH	: integer	:= 5
+	);
 	port (
 		-- AXI signals
-		S_AXI_ACLK	: in  std_logic;
-		S_AXI_ARESETN	: in  std_logic;
-		S_AXI_AWADDR	: in  std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
-		S_AXI_AWVALID	: in  std_logic;
-		S_AXI_AWREADY	: out std_logic;
-		S_AXI_WDATA	: in  std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-		S_AXI_WSTRB	: in  std_logic_vector((C_S_AXI_DATA_WIDTH/8)-1 downto 0);
-		S_AXI_WVALID	: in  std_logic;
-		S_AXI_WREADY	: out std_logic;
-		S_AXI_BRESP	: out std_logic_vector(1 downto 0);
-		S_AXI_BVALID	: out std_logic;
-		S_AXI_BREADY	: in  std_logic;
-		S_AXI_ARADDR	: in  std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
-		S_AXI_ARVALID	: in  std_logic;
-		S_AXI_ARREADY	: out std_logic;
-		S_AXI_RDATA	: out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-		S_AXI_RRESP	: out std_logic_vector(1 downto 0);
-		S_AXI_RVALID	: out std_logic;
-		S_AXI_RREADY	: in  std_logic;
+		S_AXI_ACLK	 : in  std_logic;
+		S_AXI_ARESETN	 : in  std_logic;
+		S_AXI_AWADDR	 : in  std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+		S_AXI_AWVALID	 : in  std_logic;
+		S_AXI_AWREADY	 : out std_logic;
+		S_AXI_WDATA	 : in  std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+		S_AXI_WSTRB	 : in  std_logic_vector((C_S_AXI_DATA_WIDTH/8)-1 downto 0);
+		S_AXI_WVALID	 : in  std_logic;
+		S_AXI_WREADY	 : out std_logic;
+		S_AXI_BRESP	 : out std_logic_vector(1 downto 0);
+		S_AXI_BVALID	 : out std_logic;
+		S_AXI_BREADY	 : in  std_logic;
+		S_AXI_ARADDR	 : in  std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+		S_AXI_ARVALID	 : in  std_logic;
+		S_AXI_ARREADY	 : out std_logic;
+		S_AXI_RDATA	 : out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+		S_AXI_RRESP	 : out std_logic_vector(1 downto 0);
+		S_AXI_RVALID	 : out std_logic;
+		S_AXI_RREADY	 : in  std_logic;
 
 		-- Ignored, TrustZone not supported
-		S_AXI_AWPROT	: in  std_logic_vector(2 downto 0);
-		S_AXI_ARPROT	: in  std_logic_vector(2 downto 0);
+		S_AXI_AWPROT	 : in  std_logic_vector(2 downto 0);
+		S_AXI_ARPROT	 : in  std_logic_vector(2 downto 0);
 
 		-- Control signals
 		-- UARTDR (data register)
-		rx_fifo_data	: in  std_logic_vector(11 downto 0); --rx-fifo data including status
-		rx_fifo_rd	: out std_logic;
-		tx_fifo_data	: out std_logic_vector(7 downto 0);
-		tx_fifo_wr	: out std_logic;
+		rx_fifo_data	 : in  std_logic_vector(11 downto 0); --rx-fifo data including status
+		rx_fifo_rd	 : out std_logic;
+		tx_fifo_data	 : out std_logic_vector(7 downto 0);
+		tx_fifo_wr	 : out std_logic;
 
 		-- UARTFR (flag register)
-		rx_fifo_empty	: in  std_logic;
-		rx_fifo_full	: in  std_logic;
-		tx_fifo_empty	: in  std_logic;
-		tx_fifo_full	: in  std_logic;
-		tx_busy		: in  std_logic;
-		tx_cts		: in  std_logic;
+		rx_fifo_empty	 : in  std_logic;
+		rx_fifo_full	 : in  std_logic;
+		tx_fifo_empty	 : in  std_logic;
+		tx_fifo_full	 : in  std_logic;
+		tx_busy		 : in  std_logic;
+		tx_cts		 : in  std_logic;
 
 		-- UARTIBRD (baud rate divisor integer part)
-		baud_int_div	: out std_logic_vector(15 downto 0);
+		baud_int_div	 : out std_logic_vector(15 downto 0);
 
 		-- UARTFBRD (baud rate divisor fractional part)
-		baud_frac_div	: out std_logic_vector(5 downto 0);
+		baud_frac_div	 : out std_logic_vector(5 downto 0);
 
 		-- UARTLCR (line control register)
-		break_gen	: out std_logic;
-		stop_bits	: out std_logic;
-		parity_config	: out std_logic_vector(1 downto 0);
-		data_bits	: out std_logic_vector(1 downto 0);
+		break_gen	 : out std_logic;
+		stop_bits	 : out std_logic;
+		parity_config	 : out std_logic_vector(1 downto 0);
+		data_bits	 : out std_logic_vector(1 downto 0);
 
 		-- UARTCTRL (control register)
-		flow_ctrl_enable: out std_logic;
-		rts		: out std_logic;
-		rx_enable	: out std_logic;
-		tx_enable	: out std_logic;
-		uart_enable	: out std_logic
+		flow_ctrl_enable : out std_logic;
+		rts		 : out std_logic;
+		rx_enable	 : out std_logic;
+		tx_enable	 : out std_logic;
+		uart_enable	 : out std_logic
 	);
 end axil_control;
 
@@ -284,12 +285,12 @@ begin
 
 	-- output logic
 	--data register
-	tx_fifo_wr <= '1' when axil_write_ready = '1' AND axil_awaddr = b"00" else '0';
-	rx_fifo_rd <= '1' when axil_read_ready  = '1' AND axil_araddr = b"00" else '0';
+	tx_fifo_wr <= '1' when axil_write_ready = '1' AND axil_awaddr = b"000" else '0';
+	rx_fifo_rd <= '1' when axil_read_ready  = '1' AND axil_araddr = b"000" else '0';
 
 	--baud rate registers
-	baud_int_div  <= ibrd_reg;
-	baud_frac_div <= fbrd_reg;
+	baud_int_div  <= ibrd_reg(15 downto 0);
+	baud_frac_div <= fbrd_reg(5 downto 0);
 
 	--line control register
 	data_bits     <= lcr_reg(5 downto 4);

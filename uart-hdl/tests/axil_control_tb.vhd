@@ -11,7 +11,7 @@ architecture Behavioral of axil_control_tb is
 	signal clk, rst, rstn, finished: std_logic := '0';
 
 	--write signals
-	signal awaddr: std_logic_vector(3 downto 0) := (others => '0');
+	signal awaddr: std_logic_vector(4 downto 0) := (others => '0');
 	signal awvalid, awready: std_logic := '0';
 	signal wdata: std_logic_vector(31 downto 0) := (others => '0');
 	signal wstrb: std_logic_vector(3 downto 0) := (others => '0');
@@ -20,7 +20,7 @@ architecture Behavioral of axil_control_tb is
 	signal bvalid, bready: std_logic := '0';
 
 	--read signals
-	signal araddr: std_logic_vector(3 downto 0) := (others => '0');
+	signal araddr: std_logic_vector(4 downto 0) := (others => '0');
 	signal arvalid, arready: std_logic := '0';
 	signal rdata: std_logic_vector(31 downto 0) := (others => '0');
 	signal rresp: std_logic_vector(1 downto 0) := (others => '0');
@@ -30,17 +30,32 @@ architecture Behavioral of axil_control_tb is
 	signal awprot, arprot: std_logic_vector(2 downto 0) := (others => '0');
 
 	--control registers
-	signal UARTDR: std_logic_vector(3 downto 0) := x"0"; --address
+	signal UARTDR: std_logic_vector(4 downto 0) := b"00000"; --address
 	signal rx_fifo_data: std_logic_vector(11 downto 0) := (others => '0');
 	signal rx_fifo_rd: std_logic := '0';
 	signal tx_fifo_data: std_logic_vector(7 downto 0) := (others => '0');
 	signal tx_fifo_wr: std_logic := '0';
 
+	--flag register
+	signal fifo_full, fifo_near_full, fifo_empty: std_logic := '0';
+	signal tx_busy, tx_cts: std_logic := '0';
+
+	--baudrate
+	signal baud_int_div: std_logic_vector(15 downto 0) := (others => '0');
+	signal baud_frac_div: std_logic_vector(5 downto 0) := (others => '0');
+
+	--line control
+	signal break_gen, stop_bits: std_logic := '0';
+	signal parity_config, data_bits: std_logic_vector(1 downto 0) := (others => '0');
+
+	--control
+	signal flow_ctrl_enable, rts: std_logic := '0';
+	signal uart_enable, rx_enable, tx_enable: std_logic := '0';
+
 	--fifo signals
 	signal fifo_dout: std_logic_vector(7 downto 0) := (others => '0');
-	signal fifo_full, fifo_near_full, fifo_empty: std_logic := '0';
 
-	type addr_array is array (0 to 3) of std_logic_vector(3 downto 0);
+	type addr_array is array (0 to 3) of std_logic_vector(4 downto 0);
 	type data_array is array (0 to 3) of std_logic_vector(31 downto 0);
 
 	procedure write_axi (
@@ -51,7 +66,7 @@ architecture Behavioral of axil_control_tb is
 
 			-- axi signals
 			signal axil_clk:     in  std_logic;
-			signal axil_awaddr:  out std_logic_vector(3 downto 0);
+			signal axil_awaddr:  out std_logic_vector(4 downto 0);
 			signal axil_awvalid: out std_logic;
 			signal axil_awready: in  std_logic;
 			signal axil_wdata:   out std_logic_vector(31 downto 0);
@@ -99,7 +114,7 @@ architecture Behavioral of axil_control_tb is
 
 			-- axi signals
 			signal axil_clk:     in  std_logic;
-			signal axil_araddr:  out std_logic_vector(3 downto 0);
+			signal axil_araddr:  out std_logic_vector(4 downto 0);
 			signal axil_arvalid: out std_logic;
 			signal axil_arready: in  std_logic;
 			signal axil_rdata:   in  std_logic_vector(31 downto 0);
@@ -130,34 +145,51 @@ begin
 	axil_control_uut: entity work.axil_control
 	Generic map(
 		C_S_AXI_DATA_WIDTH => 32,
-		C_S_AXI_ADDR_WIDTH => 4
+		C_S_AXI_ADDR_WIDTH => 5
 	)
 	Port map(
-		S_AXI_ACLK	=> clk,
-		S_AXI_ARESETN	=> rstn,
-		S_AXI_AWADDR	=> awaddr,
-		S_AXI_AWVALID	=> awvalid,
-		S_AXI_AWREADY	=> awready,
-		S_AXI_WDATA	=> wdata,
-		S_AXI_WSTRB	=> wstrb,
-		S_AXI_WVALID	=> wvalid,
-		S_AXI_WREADY	=> wready,
-		S_AXI_BRESP	=> bresp,
-		S_AXI_BVALID	=> bvalid,
-		S_AXI_BREADY	=> bready,
-		S_AXI_ARADDR	=> araddr,
-		S_AXI_ARVALID	=> arvalid,
-		S_AXI_ARREADY	=> arready,
-		S_AXI_RDATA	=> rdata,
-		S_AXI_RRESP	=> rresp,
-		S_AXI_RVALID	=> rvalid,
-		S_AXI_RREADY	=> rready,
-		S_AXI_AWPROT	=> awprot,
-		S_AXI_ARPROT	=> arprot,
-		rx_fifo_data	=> rx_fifo_data,
-		rx_fifo_rd	=> rx_fifo_rd,
-		tx_fifo_data	=> tx_fifo_data,
-		tx_fifo_wr	=> tx_fifo_wr
+		S_AXI_ACLK	 => clk,
+		S_AXI_ARESETN	 => rstn,
+		S_AXI_AWADDR	 => awaddr,
+		S_AXI_AWVALID	 => awvalid,
+		S_AXI_AWREADY	 => awready,
+		S_AXI_WDATA	 => wdata,
+		S_AXI_WSTRB	 => wstrb,
+		S_AXI_WVALID	 => wvalid,
+		S_AXI_WREADY	 => wready,
+		S_AXI_BRESP	 => bresp,
+		S_AXI_BVALID	 => bvalid,
+		S_AXI_BREADY	 => bready,
+		S_AXI_ARADDR	 => araddr,
+		S_AXI_ARVALID	 => arvalid,
+		S_AXI_ARREADY	 => arready,
+		S_AXI_RDATA	 => rdata,
+		S_AXI_RRESP	 => rresp,
+		S_AXI_RVALID	 => rvalid,
+		S_AXI_RREADY	 => rready,
+		S_AXI_AWPROT	 => awprot,
+		S_AXI_ARPROT	 => arprot,
+		rx_fifo_data	 => rx_fifo_data,
+		rx_fifo_rd	 => rx_fifo_rd,
+		tx_fifo_data	 => tx_fifo_data,
+		tx_fifo_wr	 => tx_fifo_wr,
+		rx_fifo_empty	 => fifo_empty,
+		rx_fifo_full	 => fifo_full,
+		tx_fifo_empty	 => fifo_empty,
+		tx_fifo_full	 => fifo_full,
+		tx_busy		 => tx_busy,
+		tx_cts		 => tx_cts,
+		baud_int_div	 => baud_int_div,
+		baud_frac_div	 => baud_frac_div,
+		break_gen	 => break_gen,
+		stop_bits	 => stop_bits,
+		parity_config	 => parity_config,
+		data_bits	 => data_bits,
+		flow_ctrl_enable => flow_ctrl_enable,
+		rts		 => rts,
+		rx_enable	 => rx_enable,
+		tx_enable	 => tx_enable,
+		uart_enable	 => uart_enable
 	);
 
 	fifo_uut: entity work.fifo

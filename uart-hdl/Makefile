@@ -25,7 +25,7 @@ $(WORKDIR)/%_tb: $(WORKFILE)
 	$(GHDL) -e $(FLAGS) --work=work --workdir='$(WORKDIR)' -o $@ $*_tb
 
 %_run: $(WORKDIR)/%_tb
-	$<
+	@$<
 
 .SECONDARY: $(MODULES:%=$(WORKDIR)/%.vcd)
 $(WORKDIR)/%.vcd: $(WORKDIR)/%_tb

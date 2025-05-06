@@ -8,15 +8,16 @@ entity fifo is
 		DEPTH:	   integer := 5   --2^x number of words should be greater than 2
 	);
 	Port(
-		clk:	   in  std_logic;
-		rst:	   in  std_logic;
-		wr:	   in  std_logic;
-		rd:	   in  std_logic;
-		d_in:	   in  std_logic_vector((WORD_SIZE-1) downto 0);
-		d_out:	   out std_logic_vector((WORD_SIZE-1) downto 0);
-		full:	   out std_logic;
-		near_full: out std_logic;
-		empty:	   out std_logic
+		clk:	    in  std_logic;
+		rst:	    in  std_logic;
+		wr:	    in  std_logic;
+		rd:	    in  std_logic;
+		d_in:	    in  std_logic_vector((WORD_SIZE-1) downto 0);
+		d_out:	    out std_logic_vector((WORD_SIZE-1) downto 0);
+		full:	    out std_logic;
+		near_full:  out std_logic;
+		near_empty: out std_logic;
+		empty:	    out std_logic
 	);
 end fifo;
 
@@ -99,7 +100,10 @@ begin
 	empty <= empty_flag;
 	d_out <= fifo_regs(to_integer(r_addr));
 
-	--if top 2 bits of current size is set we know that the buffer is 75% full
+	--if top 2 bits of current size are set we know that the buffer is greater than 75% full
 	near_full <= (curr_size(DEPTH-1) AND curr_size(DEPTH-2));
+
+	--if top 2 bits of current size are unset we know that the buffer is less than 25% full
+	near_empty <= (not curr_size(DEPTH-1) AND not curr_size(DEPTH-2)) AND not full_flag AND not empty_flag;
 
 end Behavioral;

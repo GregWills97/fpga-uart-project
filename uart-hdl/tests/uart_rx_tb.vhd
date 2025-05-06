@@ -31,7 +31,7 @@ architecture Behavioral of uart_rx_tb is
 	--rx fifo signals
 	signal rx_fifo_din, rx_fifo_dout: std_logic_vector(10 downto 0) := (others => '0');
 	signal rx_fifo_rd: std_logic := '0';
-	signal full, near_full, empty: std_logic := '0';
+	signal full, near_full, near_empty, empty: std_logic := '0';
 
 	procedure send_uart_byte (
 			signal data_length: in std_logic_vector(1 downto 0);
@@ -144,15 +144,16 @@ begin
 	rx_fifo_uut: entity work.fifo
 	Generic map(WORD_SIZE => 11, DEPTH => 3)
 	Port map(
-		clk	  => clk,
-		rst   	  => rst,
-		wr  	  => rx_done,
-		rd  	  => rx_fifo_rd,
-		d_in  	  => rx_fifo_din,
-		d_out 	  => rx_fifo_dout,
-		full  	  => full,
-		near_full => near_full,
-		empty	  => empty
+		clk	   => clk,
+		rst	   => rst,
+		wr	   => rx_done,
+		rd	   => rx_fifo_rd,
+		d_in	   => rx_fifo_din,
+		d_out	   => rx_fifo_dout,
+		full	   => full,
+		near_full  => near_full,
+		near_empty => near_empty,
+		empty	   => empty
 	);
 
 	rst <= '0';

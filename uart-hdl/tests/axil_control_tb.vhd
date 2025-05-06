@@ -38,7 +38,7 @@ architecture Behavioral of axil_control_tb is
 
 	--flag register
 	signal UARTFR: std_logic_vector(4 downto 0) := b"00100"; --address
-	signal fifo_full, fifo_near_full, fifo_empty: std_logic := '0';
+	signal fifo_full, fifo_near_full, fifo_near_empty, fifo_empty: std_logic := '0';
 	signal tx_busy, tx_cts: std_logic := '0';
 
 	--baudrate
@@ -199,15 +199,16 @@ begin
 	fifo_uut: entity work.fifo
 	Generic map(WORD_SIZE => 8, DEPTH => 3)
 	Port map(
-		clk	  => clk,
-		rst   	  => rst,
-		wr  	  => tx_fifo_wr,
-		rd  	  => rx_fifo_rd,
-		d_in  	  => tx_fifo_data,
-		d_out 	  => fifo_dout,
-		full  	  => fifo_full,
-		near_full => fifo_near_full,
-		empty	  => fifo_empty
+		clk	   => clk,
+		rst	   => rst,
+		wr	   => tx_fifo_wr,
+		rd	   => rx_fifo_rd,
+		d_in	   => tx_fifo_data,
+		d_out	   => fifo_dout,
+		full	   => fifo_full,
+		near_full  => fifo_near_full,
+		near_empty => fifo_near_empty,
+		empty	   => fifo_empty
 	);
 	--reset process
 	rstn <= not rst;

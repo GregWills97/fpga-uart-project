@@ -8,24 +8,25 @@ end fifo_tb;
 architecture Behavioral of fifo_tb is
 
 	constant clk_period: time := 8 ns; --125Mhz clk
-	signal clk, rst, wr, rd, full, near_full, empty: std_logic := '0';
+	signal clk, rst, wr, rd, full, near_full, near_empty, empty: std_logic := '0';
 	signal d_in, d_out: std_logic_vector(7 downto 0) := (others => '0');
 	signal finished: std_logic := '0';
 
 begin
 
 	fifo_uut: entity work.fifo
-	Generic map(WORD_SIZE => 8, DEPTH => 3)
+	Generic map(WORD_SIZE => 8, DEPTH => 4)
 	Port map(
-		clk	  => clk,
-		rst   	  => rst,
-		wr  	  => wr,
-		rd  	  => rd,
-		d_in  	  => d_in,
-		d_out 	  => d_out,
-		full  	  => full,
-		near_full => near_full,
-		empty	  => empty
+		clk	   => clk,
+		rst	   => rst,
+		wr	   => wr,
+		rd	   => rd,
+		d_in	   => d_in,
+		d_out	   => d_out,
+		full	   => full,
+		near_full  => near_full,
+		near_empty => near_empty,
+		empty	   => empty
 	);
 
 	rst <= '0';
@@ -34,8 +35,9 @@ begin
 	clk <= not clk after clk_period/2 when finished /= '1' else '0';
 
 	process
-		type data_array is array (0 to 7) of integer;
-		variable fifo_data: data_array := (12, 1, 19, 97, 9, 27, 19, 97);
+		type data_array is array (0 to 15) of integer;
+		variable fifo_data: data_array := (12, 1, 19, 97, 9, 27, 19, 97,
+						   12, 1, 19, 97, 9, 27, 19, 97);
 	begin
 		wait for clk_period;
 
@@ -44,7 +46,7 @@ begin
 		end if;
 
 		wait until rising_edge(clk);
-		for i in 0 to 5 loop
+		for i in 0 to 2 loop
 			wr <= '1';
 			d_in <= std_logic_vector(to_unsigned(fifo_data(i), d_in'length));
 			wait for clk_period;
@@ -52,13 +54,14 @@ begin
 			wait for clk_period;
 		end loop;
 
+		wait until rising_edge(clk);
 		if empty = '1' then
 			report "TEST_ERROR: expected empty flag to be low";
-		elsif near_full /= '1' then
-			report "TEST_ERROR: expected near flag to be high";
+		elsif near_empty /= '1' then
+			report "TEST_ERROR: expected near empty flag to be high";
 		end if;
 
-		for i in 6 to 7 loop
+		for i in 3 to 11 loop
 			wr <= '1';
 			d_in <= std_logic_vector(to_unsigned(fifo_data(i), d_in'length));
 			wait for clk_period;
@@ -66,10 +69,32 @@ begin
 			wait for clk_period;
 		end loop;
 
+		wait until rising_edge(clk);
+		if empty = '1' then
+			report "TEST_ERROR: expected empty flag to be low";
+		elsif near_empty = '1' then
+			report "TEST_ERROR: expected near empty flag to be low";
+		elsif near_full /= '1' then
+			report "TEST_ERROR: expected near full flag to be high";
+		end if;
+
+		for i in 12 to 15 loop
+			wr <= '1';
+			d_in <= std_logic_vector(to_unsigned(fifo_data(i), d_in'length));
+			wait for clk_period;
+			wr <= '0';
+			wait for clk_period;
+		end loop;
+
+		wait until rising_edge(clk);
 		if full /= '1' then
 			report "TEST_ERROR: expected full flag to be high";
 		elsif empty = '1' then
-			report "TEST_ERROR: expected near empty to be low";
+			report "TEST_ERROR: expected empty to be low";
+		elsif near_empty = '1' then
+			report "TEST_ERROR: expected near empty flag to be low";
+		elsif near_full = '1' then
+			report "TEST_ERROR: expected near full flag to be low";
 		end if;
 
 		for i in 0 to 1 loop
@@ -84,15 +109,18 @@ begin
 			wait for clk_period;
 		end loop;
 
+		wait until rising_edge(clk);
 		if full = '1' then
 			report "TEST_ERROR: expected full flag to be low";
 		elsif near_full /= '1' then
 			report "TEST_ERROR: expected near full flag to be high";
+		elsif near_empty = '1' then
+			report "TEST_ERROR: expected near empty flag to be low";
 		elsif empty = '1' then
 			report "TEST_ERROR: expected empty flag to be low";
 		end if;
 
-		for i in 2 to 7 loop
+		for i in 2 to 4 loop
 			if unsigned(d_out) /= to_unsigned(fifo_data(i), d_out'length) then
 				report "TEST_ERROR mismatched data returned from fifo at: " &
 					integer'image(i);
@@ -104,10 +132,59 @@ begin
 			wait for clk_period;
 		end loop;
 
+		wait until rising_edge(clk);
 		if full = '1' then
 			report "TEST_ERROR: expected full flag to be low";
 		elsif near_full = '1' then
 			report "TEST_ERROR: expected near full flag to be low";
+		elsif near_empty = '1' then
+			report "TEST_ERROR: expected near empty flag to be low";
+		elsif empty = '1' then
+			report "TEST_ERROR: expected empty flag to be low";
+		end if;
+
+		for i in 5 to 12 loop
+			if unsigned(d_out) /= to_unsigned(fifo_data(i), d_out'length) then
+				report "TEST_ERROR mismatched data returned from fifo at: " &
+					integer'image(i);
+			end if;
+
+			rd <= '1';
+			wait for clk_period;
+			rd <= '0';
+			wait for clk_period;
+		end loop;
+
+		wait until rising_edge(clk);
+		if full = '1' then
+			report "TEST_ERROR: expected full flag to be low";
+		elsif near_full = '1' then
+			report "TEST_ERROR: expected near full flag to be low";
+		elsif near_empty /= '1' then
+			report "TEST_ERROR: expected near empty flag to be high";
+		elsif empty = '1' then
+			report "TEST_ERROR: expected empty flag to be low";
+		end if;
+
+		for i in 13 to 15 loop
+			if unsigned(d_out) /= to_unsigned(fifo_data(i), d_out'length) then
+				report "TEST_ERROR mismatched data returned from fifo at: " &
+					integer'image(i);
+			end if;
+
+			rd <= '1';
+			wait for clk_period;
+			rd <= '0';
+			wait for clk_period;
+		end loop;
+
+		wait until rising_edge(clk);
+		if full = '1' then
+			report "TEST_ERROR: expected full flag to be low";
+		elsif near_full = '1' then
+			report "TEST_ERROR: expected near full flag to be low";
+		elsif near_empty = '1' then
+			report "TEST_ERROR: expected near empty flag to be low";
 		elsif empty /= '1' then
 			report "TEST_ERROR: expected empty flag to be high";
 		end if;

@@ -1,7 +1,5 @@
 GHDL := ghdl
 GTKW := gtkwave
-SRCS = $(wildcard srcs/*.vhd)
-TESTS = $(wildcard tests/*.vhd)
 FLAGS = -O3 --std=08 -fexplicit -Wall
 WORKDIR= $(PWD)/work
 WORKFILE = $(WORKDIR)/work-obj93.cf
@@ -13,6 +11,8 @@ DOCDIR = $(PWD)/docs
 DOCBUILD = $(DOCDIR)/build
 
 MODULES = baud_gen uart_rx uart_tx fifo axil_control
+SRCS = $(addprefix srcs/,$(addsuffix .vhd,$(MODULES)))
+TESTS = $(addprefix tests/,$(addsuffix _tb.vhd,$(MODULES)))
 
 $(WORKFILE): $(SRCS) $(TESTS)
 	mkdir -p $(WORKDIR)

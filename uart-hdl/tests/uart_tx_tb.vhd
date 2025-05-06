@@ -28,7 +28,7 @@ architecture Behavioral of uart_tx_tb is
 	--tx fifo signals
 	signal tx_fifo_din, tx_fifo_dout: std_logic_vector(7 downto 0) := (others => '0');
 	signal tx_fifo_wr: std_logic := '0';
-	signal full, near_full, empty: std_logic := '0';
+	signal full, near_full, near_empty, empty: std_logic := '0';
 
 	procedure fill_fifo (
 			signal wr: out std_logic
@@ -69,15 +69,16 @@ begin
 	tx_fifo_uut: entity work.fifo
 	Generic map(WORD_SIZE => 8, DEPTH => 3)
 	Port map(
-		clk	  => clk,
-		rst   	  => rst,
-		wr  	  => tx_fifo_wr,
-		rd  	  => tx_done,
-		d_in  	  => tx_fifo_din,
-		d_out 	  => tx_fifo_dout,
-		full  	  => full,
-		near_full => near_full,
-		empty	  => empty
+		clk	   => clk,
+		rst	   => rst,
+		wr	   => tx_fifo_wr,
+		rd	   => tx_done,
+		d_in	   => tx_fifo_din,
+		d_out	   => tx_fifo_dout,
+		full	   => full,
+		near_full  => near_full,
+		near_empty => near_empty,
+		empty	   => empty
 	);
 
 	rst <= '0';

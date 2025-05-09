@@ -11,7 +11,7 @@ architecture Behavioral of axil_control_tb is
 	signal clk, rst, rstn, finished: std_logic := '0';
 
 	--write signals
-	signal awaddr: std_logic_vector(4 downto 0) := (others => '0');
+	signal awaddr: std_logic_vector(5 downto 0) := (others => '0');
 	signal awvalid, awready: std_logic := '0';
 	signal wdata: std_logic_vector(31 downto 0) := (others => '0');
 	signal wstrb: std_logic_vector(3 downto 0) := (others => '0');
@@ -20,7 +20,7 @@ architecture Behavioral of axil_control_tb is
 	signal bvalid, bready: std_logic := '0';
 
 	--read signals
-	signal araddr: std_logic_vector(4 downto 0) := (others => '0');
+	signal araddr: std_logic_vector(5 downto 0) := (others => '0');
 	signal arvalid, arready: std_logic := '0';
 	signal rdata: std_logic_vector(31 downto 0) := (others => '0');
 	signal rresp: std_logic_vector(1 downto 0) := (others => '0');
@@ -30,32 +30,49 @@ architecture Behavioral of axil_control_tb is
 	signal awprot, arprot: std_logic_vector(2 downto 0) := (others => '0');
 
 	--control registers
-	signal UARTDR: std_logic_vector(4 downto 0) := b"00000"; --address
+	signal UARTDR: std_logic_vector(5 downto 0) := b"000000"; --address
 	signal rx_fifo_data: std_logic_vector(11 downto 0) := (others => '0');
 	signal rx_fifo_rd: std_logic := '0';
 	signal tx_fifo_data: std_logic_vector(7 downto 0) := (others => '0');
 	signal tx_fifo_wr: std_logic := '0';
 
 	--flag register
-	signal UARTFR: std_logic_vector(4 downto 0) := b"00100"; --address
+	signal UARTFR: std_logic_vector(5 downto 0) := b"000100"; --address
 	signal fifo_full, fifo_near_full, fifo_near_empty, fifo_empty: std_logic := '0';
 	signal tx_busy, tx_cts: std_logic := '0';
 
 	--baudrate
-	signal UARTIBRD: std_logic_vector(4 downto 0) := b"01000"; --address
+	signal UARTIBRD: std_logic_vector(5 downto 0) := b"001000"; --address
 	signal baud_int_div: std_logic_vector(15 downto 0) := (others => '0');
-	signal UARTFBRD: std_logic_vector(4 downto 0) := b"01100"; --address
+	signal UARTFBRD: std_logic_vector(5 downto 0) := b"001100"; --address
 	signal baud_frac_div: std_logic_vector(5 downto 0) := (others => '0');
 
 	--line control
-	signal UARTLCR: std_logic_vector(4 downto 0) := b"10000"; --address
+	signal UARTLCR: std_logic_vector(5 downto 0) := b"010000"; --address
 	signal break_gen, stop_bits: std_logic := '0';
 	signal parity_config, data_bits: std_logic_vector(1 downto 0) := (others => '0');
 
 	--control
-	signal UARTCTRL: std_logic_vector(4 downto 0) := b"10100"; --address
+	signal UARTCTRL: std_logic_vector(5 downto 0) := b"010100"; --address
 	signal flow_ctrl_enable, rts: std_logic := '0';
 	signal uart_enable, rx_enable, tx_enable: std_logic := '0';
+
+	--interrupt mask
+	signal UARTIMASK: std_logic_vector(5 downto 0) := b"011000";
+	signal intr_mask: std_logic_vector(6 downto 0) := (others => '0');
+
+	--interrupt masked status
+	signal UARTIMSTS: std_logic_vector(5 downto 0) := b"011100";
+	signal intr_masked_sts: std_logic_vector(6 downto 0) := (others => '0');
+
+	--interrupt raw status
+	signal UARTIRSTS: std_logic_vector(5 downto 0) := b"100000";
+	signal intr_raw_sts: std_logic_vector(6 downto 0) := (others => '0');
+
+	--interrupt clear
+	signal UARTICLR: std_logic_vector(5 downto 0) := b"100100";
+	signal intr_clear_valid: std_logic := '0';
+	signal intr_clear: std_logic_vector(6 downto 0) := (others => '0');
 
 	--fifo signals
 	signal fifo_dout: std_logic_vector(7 downto 0) := (others => '0');
@@ -63,14 +80,14 @@ architecture Behavioral of axil_control_tb is
 	type data_array is array (0 to 7) of std_logic_vector(31 downto 0);
 
 	procedure write_axi (
-			addr: in std_logic_vector(4 downto 0);
+			addr: in std_logic_vector(5 downto 0);
 			data: in data_array;
 			num_txns: in integer;
 			axi_error_flag: out boolean;
 
 			-- axi signals
 			signal axil_clk:     in  std_logic;
-			signal axil_awaddr:  out std_logic_vector(4 downto 0);
+			signal axil_awaddr:  out std_logic_vector(5 downto 0);
 			signal axil_awvalid: out std_logic;
 			signal axil_awready: in  std_logic;
 			signal axil_wdata:   out std_logic_vector(31 downto 0);
@@ -111,14 +128,14 @@ architecture Behavioral of axil_control_tb is
 	end write_axi;
 
 	procedure read_axi (
-			addr: in std_logic_vector(4 downto 0);
+			addr: in std_logic_vector(5 downto 0);
 			data: out data_array;
 			num_txns: in integer;
 			axi_error_flag: out boolean;
 
 			-- axi signals
 			signal axil_clk:     in  std_logic;
-			signal axil_araddr:  out std_logic_vector(4 downto 0);
+			signal axil_araddr:  out std_logic_vector(5 downto 0);
 			signal axil_arvalid: out std_logic;
 			signal axil_arready: in  std_logic;
 			signal axil_rdata:   in  std_logic_vector(31 downto 0);
@@ -149,7 +166,7 @@ begin
 	axil_control_uut: entity work.axil_control
 	Generic map(
 		C_S_AXI_DATA_WIDTH => 32,
-		C_S_AXI_ADDR_WIDTH => 5
+		C_S_AXI_ADDR_WIDTH => 6
 	)
 	Port map(
 		S_AXI_ACLK	 => clk,
@@ -193,7 +210,12 @@ begin
 		rts		 => rts,
 		rx_enable	 => rx_enable,
 		tx_enable	 => tx_enable,
-		uart_enable	 => uart_enable
+		uart_enable	 => uart_enable,
+		intr_mask	 => intr_mask,
+		intr_masked_sts	 => intr_masked_sts,
+		intr_raw_sts	 => intr_raw_sts,
+		intr_clear_valid => intr_clear_valid,
+		intr_clear	 => intr_clear
 	);
 
 	fifo_uut: entity work.fifo

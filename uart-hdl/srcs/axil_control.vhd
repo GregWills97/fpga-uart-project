@@ -7,7 +7,7 @@ entity axil_control is
 		-- Width of S_AXI data bus
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		-- Width of S_AXI address bus
-		C_S_AXI_ADDR_WIDTH	: integer	:= 5
+		C_S_AXI_ADDR_WIDTH	: integer	:= 6
 	);
 	port (
 		-- AXI signals
@@ -67,7 +67,20 @@ entity axil_control is
 		rts		 : out std_logic;
 		rx_enable	 : out std_logic;
 		tx_enable	 : out std_logic;
-		uart_enable	 : out std_logic
+		uart_enable	 : out std_logic;
+
+		-- UARTIMASK (interrupt mask register)
+		intr_mask	 : out std_logic_vector(6 downto 0);
+
+		-- UARTIMSTS (interrupt masked status register)
+		intr_masked_sts	 : in  std_logic_vector(6 downto 0);
+
+		-- UARTIRSTS (interrupt raw status register)
+		intr_raw_sts	 : in  std_logic_vector(6 downto 0);
+
+		-- UARTIRSTS (interrupt raw status register)
+		intr_clear_valid : out std_logic;
+		intr_clear	 : out std_logic_vector(6 downto 0)
 	);
 end axil_control;
 
@@ -114,6 +127,18 @@ architecture Behavioral of axil_control is
 
 	-- UART CTRL (Control register)
 	signal ctrl_reg, ctrl_next: std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
+
+	-- UART IMASK (interrupt mask register)
+	signal imask_reg, imask_next: std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
+
+	-- UART IMSTS (interrupt mask status register)
+	-- there is no actual register here, read only address returns masked status
+
+	-- UART IRSTS (interrupt raw status register)
+	-- there is no actual register here, read only address returns raw status
+
+	-- UART ICLR (interrupt clear register)
+	signal iclr_reg, iclr_next: std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
 
 	-- function to apply write strobe to slave registers
 	function apply_wstrb (
@@ -162,26 +187,36 @@ begin
 				fbrd_reg <= (others => '0');
 				lcr_reg  <= (others => '0');
 				ctrl_reg <= (others => '0');
+				imask_reg <= (others => '0');
+				iclr_reg <= (others => '0');
 			else
 				axil_bvalid <= axil_bvalid_next;
 				axil_write_ready <= axil_write_ready_next;
 
 				if axil_write_ready = '1' then
 					case axil_awaddr is
-					-- No register for "000", write will go directly to txfifo
-					-- No register for "001", it is read only flag register
-					when "010" =>
+					-- No register for "0000", write will go directly to txfifo
+					-- No register for "0001", it is read only flag register
+					when "0010" =>
 						-- baud rate integer register
 						ibrd_reg <= ibrd_next;
-					when "011" =>
+					when "0011" =>
 						-- baud rate fractional register
 						fbrd_reg <= fbrd_next;
-					when "100" =>
+					when "0100" =>
 						-- line control register
 						lcr_reg <= lcr_next;
-					when "101" =>
+					when "0101" =>
 						-- control register
 						ctrl_reg <= ctrl_next;
+					when "0110" =>
+						-- interrupt mask register
+						imask_reg <= imask_next;
+					-- No register for "0111", it is read only masked interrupt status
+					-- No register for "1000", it is read only raw interrupt status
+					when "1001" =>
+						-- interrupt clear register
+						iclr_reg <= iclr_next;
 					when others =>
 						null;
 					end case;
@@ -192,7 +227,8 @@ begin
 
 	--write control next state logic
 	process(S_AXI_AWVALID, axil_wdata, S_AXI_WVALID, axil_wstrb, axil_write_ready,
-		S_AXI_BREADY, axil_bvalid, ibrd_reg, fbrd_reg, lcr_reg, ctrl_reg)
+		S_AXI_BREADY, axil_bvalid, ibrd_reg, fbrd_reg, lcr_reg, ctrl_reg,
+		imask_reg, iclr_reg)
 	begin
 		if axil_write_ready = '1' then
 			axil_bvalid_next <= '1';
@@ -206,14 +242,18 @@ begin
 
 		--programmable registers
 		tx_fifo_data <= apply_wstrb(axil_wdata, axil_wdata, axil_wstrb)(7 downto 0);
-		ibrd_next <= (C_S_AXI_DATA_WIDTH-1 downto 16 => '0')
-			     & apply_wstrb(ibrd_reg, axil_wdata, axil_wstrb)(15 downto 0);
-		fbrd_next <= (C_S_AXI_DATA_WIDTH-1 downto 6 => '0')
-			     & apply_wstrb(fbrd_reg, axil_wdata, axil_wstrb)(5 downto 0);
-		lcr_next  <= (C_S_AXI_DATA_WIDTH-1 downto 6 => '0')
-			     & apply_wstrb(lcr_reg, axil_wdata, axil_wstrb)(5 downto 0);
-		ctrl_next <= (C_S_AXI_DATA_WIDTH-1 downto 5 => '0')
+		ibrd_next  <= (C_S_AXI_DATA_WIDTH-1 downto 16 => '0')
+			      & apply_wstrb(ibrd_reg, axil_wdata, axil_wstrb)(15 downto 0);
+		fbrd_next  <= (C_S_AXI_DATA_WIDTH-1 downto 6 => '0')
+			      & apply_wstrb(fbrd_reg, axil_wdata, axil_wstrb)(5 downto 0);
+		lcr_next   <= (C_S_AXI_DATA_WIDTH-1 downto 6 => '0')
+			      & apply_wstrb(lcr_reg, axil_wdata, axil_wstrb)(5 downto 0);
+		ctrl_next  <= (C_S_AXI_DATA_WIDTH-1 downto 5 => '0')
 			     & apply_wstrb(ctrl_reg, axil_wdata, axil_wstrb)(4 downto 0);
+		imask_next <= (C_S_AXI_DATA_WIDTH-1 downto 7 => '0')
+			     & apply_wstrb(imask_reg, axil_wdata, axil_wstrb)(6 downto 0);
+		iclr_next  <= (C_S_AXI_DATA_WIDTH-1 downto 7 => '0')
+			     & apply_wstrb(iclr_reg, axil_wdata, axil_wstrb)(6 downto 0);
 	end process;
 
 	--read signal hookup
@@ -240,11 +280,11 @@ begin
 
 				if ((not axil_rvalid) OR S_AXI_RREADY) = '1' then
 					case axil_araddr is
-					when b"000" =>
+					when b"0000" =>
 						-- UARTDR (data register)
 						axil_rdata <= (C_S_AXI_DATA_WIDTH-1 downto 12 => '0')
 							      & rx_fifo_data;
-					when b"001" =>
+					when b"0001" =>
 						-- UARTFR (flag register)
 						axil_rdata <= (C_S_AXI_DATA_WIDTH-1 downto 6 => '0')
 							      & rx_fifo_empty
@@ -253,18 +293,32 @@ begin
 							      & tx_fifo_full
 							      & tx_busy
 							      & tx_cts;
-					when b"010" =>
+					when b"0010" =>
 						-- UARTIBRD (baud rate divisor integer)
 						axil_rdata <= ibrd_reg;
-					when b"011" =>
+					when b"0011" =>
 						-- UARTFBRD (baud rate divisor fractional)
 						axil_rdata <= fbrd_reg;
-					when b"100" =>
+					when b"0100" =>
 						-- UARTLCR (line control register)
 						axil_rdata <= lcr_reg;
-					when b"101" =>
+					when b"0101" =>
 						-- UARTCTRL (control register)
 						axil_rdata <= ctrl_reg;
+					when b"0110" =>
+						-- UARTIMASK (interrupt mask register)
+						axil_rdata <= imask_reg;
+					when b"0111" =>
+						-- UARTIMSTS (interrupt masked status register)
+						axil_rdata <= (C_S_AXI_DATA_WIDTH-1 downto 7 => '0')
+							      & intr_masked_sts;
+					when b"1000" =>
+						-- UARTIRSTS (interrupt raw status register)
+						axil_rdata <= (C_S_AXI_DATA_WIDTH-1 downto 7 => '0')
+							      & intr_raw_sts;
+					when b"1001" =>
+						-- UARTICLR (interrupt clear register)
+						axil_rdata <= iclr_reg;
 					when others =>
 						null;
 					end case;
@@ -285,8 +339,8 @@ begin
 
 	-- output logic
 	--data register
-	tx_fifo_wr <= '1' when axil_write_ready = '1' AND axil_awaddr = b"000" else '0';
-	rx_fifo_rd <= '1' when axil_read_ready  = '1' AND axil_araddr = b"000" else '0';
+	tx_fifo_wr <= '1' when axil_write_ready = '1' AND axil_awaddr = b"0000" else '0';
+	rx_fifo_rd <= '1' when axil_read_ready  = '1' AND axil_araddr = b"0000" else '0';
 
 	--baud rate registers
 	baud_int_div  <= ibrd_reg(15 downto 0);
@@ -304,5 +358,12 @@ begin
 	rx_enable	 <= ctrl_reg(2);
 	tx_enable    	 <= ctrl_reg(1);
 	uart_enable	 <= ctrl_reg(0);
+
+	--interrupt mask register
+	intr_mask <= imask_reg(6 downto 0);
+
+	--interrupt clear register
+	intr_clear_valid <= '1' when axil_write_ready = '1' AND axil_awaddr = b"1001" else '0';
+	intr_mask <= imask_reg(6 downto 0);
 
 end Behavioral;

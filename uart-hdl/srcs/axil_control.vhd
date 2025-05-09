@@ -313,7 +313,7 @@ begin
 							      & intr_raw_sts;
 					--register "1001" is write only interrupt clear register
 					when others =>
-						null;
+						axil_rdata <= (others => '0');
 					end case;
 				end if;
 			end if;

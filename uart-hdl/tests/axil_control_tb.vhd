@@ -73,6 +73,7 @@ architecture Behavioral of axil_control_tb is
 	signal UARTICLR: std_logic_vector(5 downto 0) := b"100100";
 	signal intr_clear_valid: std_logic := '0';
 	signal intr_clear: std_logic_vector(6 downto 0) := (others => '0');
+	signal intr_clear_reg: std_logic_vector(6 downto 0) := (others => '0'); --for test
 
 	--fifo signals
 	signal fifo_dout: std_logic_vector(7 downto 0) := (others => '0');
@@ -232,6 +233,7 @@ begin
 		near_empty => fifo_near_empty,
 		empty	   => fifo_empty
 	);
+
 	--reset process
 	rstn <= not rst;
 	process
@@ -245,6 +247,17 @@ begin
 
 	--clk
 	clk <= not clk after clk_period/2 when finished /= '1' else '0';
+
+	-- interrupt clear register process
+	-- want to test that interrupt clear writes go directly out of module
+	process(clk)
+	begin
+		if rising_edge(clk) then
+			if intr_clear_valid = '1' then
+				intr_clear_reg <= intr_clear;
+			end if;
+		end if;
+	end process;
 
 	--rx data needs 12 bits just prepend for test
 	rx_fifo_data <= x"0" & fifo_dout;
@@ -298,7 +311,6 @@ begin
 		test_data := (x"DEADBEEF", others => (others => '0'));
 		write_axi(UARTIBRD, test_data, 1, axi_error, clk, awaddr, awvalid, awready,
 			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
-		-- check control out
 		if baud_int_div /= test_data(0)(15 downto 0) then
 			report "TEST_ERROR: integer baud divisor output not correct";
 		end if;
@@ -313,7 +325,6 @@ begin
 
 		write_axi(UARTFBRD, test_data, 1, axi_error, clk, awaddr, awvalid, awready,
 			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
-		-- check control out
 		if baud_frac_div /= test_data(0)(5 downto 0) then
 			report "TEST_ERROR: fractional baud divisor output not correct";
 		end if;
@@ -369,7 +380,48 @@ begin
 			 rdata, rresp, rvalid, rready);
 		mask := (31 downto 5 => '0') & (4 downto 0 => '1');
 		if ret_data(0) /= (test_data(0) AND mask) then
-			report "TEST_ERROR: line control register readback not correct";
+			report "TEST_ERROR: control register readback not correct";
+		end if;
+
+		-- write to interrupt mask
+		test_data := (x"DEADBEEF", others => (others => '0'));
+		write_axi(UARTIMASK, test_data, 1, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		if intr_mask /= test_data(0)(6 downto 0) then
+			report "TEST_ERROR: interrupt mask output not correct";
+		end if;
+
+		-- check axi readback
+		read_axi(UARTIMASK, ret_data, 1, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		mask := (31 downto 7 => '0') & (6 downto 0 => '1');
+		if ret_data(0) /= (test_data(0) AND mask) then
+			report "TEST_ERROR: interrupt mask register readback not correct";
+		end if;
+
+		-- check axi read of interrupt status registers
+		intr_masked_sts <= b"1010101";
+		read_axi(UARTIMSTS, ret_data, 1, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if ret_data(0) /= (31 downto 7 => '0') & intr_masked_sts then
+			report "TEST_ERROR: interrupt masked status register read not correct";
+		end if;
+
+		intr_raw_sts <= b"1111111";
+		read_axi(UARTIRSTS, ret_data, 1, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if ret_data(0) /= (31 downto 7 => '0') & intr_raw_sts then
+			report "TEST_ERROR: interrupt masked raw register read not correct";
+		end if;
+
+		-- write to interrupt clear
+		test_data := (x"DEADBEEF", others => (others => '0'));
+		write_axi(UARTICLR, test_data, 1, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		if intr_clear /= test_data(0)(6 downto 0) then
+			report "TEST_ERROR: interrupt clear output not correct";
+		elsif intr_clear /= intr_clear_reg then
+			report "TEST_ERROR: interrupt clear register not written too";
 		end if;
 
 		report "TEST_SUCCESS: end of test";

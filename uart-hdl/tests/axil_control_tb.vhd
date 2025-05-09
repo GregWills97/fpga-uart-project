@@ -411,7 +411,7 @@ begin
 		read_axi(UARTIRSTS, ret_data, 1, axi_error, clk, araddr, arvalid, arready,
 			 rdata, rresp, rvalid, rready);
 		if ret_data(0) /= (31 downto 7 => '0') & intr_raw_sts then
-			report "TEST_ERROR: interrupt masked raw register read not correct";
+			report "TEST_ERROR: interrupt raw status register read not correct";
 		end if;
 
 		-- write to interrupt clear

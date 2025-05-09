@@ -138,7 +138,7 @@ architecture Behavioral of axil_control is
 	-- there is no actual register here, read only address returns raw status
 
 	-- UART ICLR (interrupt clear register)
-	signal iclr_reg, iclr_next: std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
+	-- there is no actual register here, writes go directly to external interrupt module
 
 	-- function to apply write strobe to slave registers
 	function apply_wstrb (
@@ -188,7 +188,6 @@ begin
 				lcr_reg  <= (others => '0');
 				ctrl_reg <= (others => '0');
 				imask_reg <= (others => '0');
-				iclr_reg <= (others => '0');
 			else
 				axil_bvalid <= axil_bvalid_next;
 				axil_write_ready <= axil_write_ready_next;
@@ -214,9 +213,7 @@ begin
 						imask_reg <= imask_next;
 					-- No register for "0111", it is read only masked interrupt status
 					-- No register for "1000", it is read only raw interrupt status
-					when "1001" =>
-						-- interrupt clear register
-						iclr_reg <= iclr_next;
+					-- No register for "1001", write will go directly to interrupt module
 					when others =>
 						null;
 					end case;
@@ -227,8 +224,7 @@ begin
 
 	--write control next state logic
 	process(S_AXI_AWVALID, axil_wdata, S_AXI_WVALID, axil_wstrb, axil_write_ready,
-		S_AXI_BREADY, axil_bvalid, ibrd_reg, fbrd_reg, lcr_reg, ctrl_reg,
-		imask_reg, iclr_reg)
+		S_AXI_BREADY, axil_bvalid, ibrd_reg, fbrd_reg, lcr_reg, ctrl_reg, imask_reg)
 	begin
 		if axil_write_ready = '1' then
 			axil_bvalid_next <= '1';
@@ -252,8 +248,7 @@ begin
 			     & apply_wstrb(ctrl_reg, axil_wdata, axil_wstrb)(4 downto 0);
 		imask_next <= (C_S_AXI_DATA_WIDTH-1 downto 7 => '0')
 			     & apply_wstrb(imask_reg, axil_wdata, axil_wstrb)(6 downto 0);
-		iclr_next  <= (C_S_AXI_DATA_WIDTH-1 downto 7 => '0')
-			     & apply_wstrb(iclr_reg, axil_wdata, axil_wstrb)(6 downto 0);
+		intr_clear <= apply_wstrb(axil_wdata, axil_wdata, axil_wstrb)(6 downto 0);
 	end process;
 
 	--read signal hookup
@@ -316,9 +311,7 @@ begin
 						-- UARTIRSTS (interrupt raw status register)
 						axil_rdata <= (C_S_AXI_DATA_WIDTH-1 downto 7 => '0')
 							      & intr_raw_sts;
-					when b"1001" =>
-						-- UARTICLR (interrupt clear register)
-						axil_rdata <= iclr_reg;
+					--register "1001" is write only interrupt clear register
 					when others =>
 						null;
 					end case;
@@ -364,6 +357,5 @@ begin
 
 	--interrupt clear register
 	intr_clear_valid <= '1' when axil_write_ready = '1' AND axil_awaddr = b"1001" else '0';
-	intr_mask <= imask_reg(6 downto 0);
 
 end Behavioral;

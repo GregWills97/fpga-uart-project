@@ -7,17 +7,9 @@ entity interrupt_generation is
 		clk:		    in  std_logic;
 		rst:		    in  std_logic;
 
-		-- tx fifo status
-		tx_full_flag:	    in  std_logic;
-		tx_near_full_flag:  in  std_logic;
+		-- fifo status
 		tx_near_empty_flag: in  std_logic;
-		tx_emtpy_flag:	    in  std_logic;
-
-		-- rx fifo status
-		rx_full_flag:	    in  std_logic;
 		rx_near_full_flag:  in  std_logic;
-		rx_near_empty_flag: in  std_logic;
-		rx_emtpy_flag:	    in  std_logic;
 
 		-- rx errors
 		rx_parity_err:	    in  std_logic;
@@ -47,25 +39,25 @@ end interrupt_generation;
 
 architecture Behavioral of interrupt_generation is
 
-	signal ctsn_reg:    std_logic;
+	signal ctsn_reg:    std_logic := '0';
 
-	signal tx_intr_reg: std_logic; --tx interrupt
-	signal rx_intr_reg: std_logic; --rx interrupt
+	signal tx_intr_reg: std_logic := '0'; --tx interrupt
+	signal rx_intr_reg: std_logic := '0'; --rx interrupt
 
-	signal oe_intr_reg: std_logic; --overrun error interrupt
-	signal be_intr_reg: std_logic; --break error interrupt
-	signal pe_intr_reg: std_logic; --parity error interrupt
-	signal fe_intr_reg: std_logic; --frame error interrupt
-	signal er_intr_all: std_logic; --or of all
+	signal oe_intr_reg: std_logic := '0'; --overrun error interrupt
+	signal be_intr_reg: std_logic := '0'; --break error interrupt
+	signal pe_intr_reg: std_logic := '0'; --parity error interrupt
+	signal fe_intr_reg: std_logic := '0'; --frame error interrupt
+	signal er_intr_all: std_logic := '0'; --or of all
 
-	signal fc_intr_reg: std_logic; --modem status interrupt
+	signal fc_intr_reg: std_logic := '0'; --modem status interrupt
 begin
 
 	process(clk)
 	begin
 		if rising_edge(clk) then
 			if rst = '1' then
-				cts_reg <= '0';
+				ctsn_reg <= '1'; --active low
 
 				--interrupts
 				tx_intr_reg <= '0';
@@ -77,65 +69,65 @@ begin
 				fc_intr_reg <= '0';
 			else
 				-- tx interrupt
-				if intr_clear_valid AND intr_clear(0) = '1' then
+				if intr_clear_valid = '1' AND intr_clear(0) = '1' then
 					tx_intr_reg <= '0';
 				else
-					tx_intr_reg <= tx_fifo_near_empty;
+					tx_intr_reg <= tx_near_empty_flag;
 				end if;
 
 				-- rx interrupt
-				if intr_clear_valid AND intr_clear(1) = '1' then
+				if intr_clear_valid = '1' AND intr_clear(1) = '1' then
 					rx_intr_reg <= '0';
 				else
-					rx_intr_reg <= rx_fifo_near_full;
+					rx_intr_reg <= rx_near_full_flag;
 				end if;
 
 				-- frame error interrupt
-				if intr_clear_valid AND intr_clear(2) = '1' then
+				if intr_clear_valid = '1' AND intr_clear(2) = '1' then
 					fe_intr_reg <= '0';
 				else
-					if rx_frame_error = '1' then
-						fe_intr_reg <= '1;
+					if rx_frame_err = '1' then
+						fe_intr_reg <= '1';
 					end if;
 				end if;
 
 				-- parity error interrupt
-				if intr_clear_valid AND intr_clear(3) = '1' then
+				if intr_clear_valid = '1' AND intr_clear(3) = '1' then
 					pe_intr_reg <= '0';
 				else
-					if rx_parity_error = '1' then
+					if rx_parity_err = '1' then
 						pe_intr_reg <= '1';
 					end if;
 				end if;
 
 				-- break error interrupt
-				if intr_clear_valid AND intr_clear(4) = '1' then
+				if intr_clear_valid = '1' AND intr_clear(4) = '1' then
 					be_intr_reg <= '0';
 				else
-					if rx_break_error = '1' then
+					if rx_break_err = '1' then
 						be_intr_reg <= '1';
 					end if;
 				end if;
 
 				-- overrun error interrupt
-				if intr_clear_valid AND intr_clear(5) = '1' then
+				if intr_clear_valid = '1' AND intr_clear(5) = '1' then
 					oe_intr_reg <= '0';
 				else
-					if rx_overrun_error = '1' then
+					if rx_overrun_err = '1' then
 						oe_intr_reg <= '1';
 					end if;
 				end if;
 
 				-- flow control interrupt
-				if intr_clear_valid AND intr_clear(6) = '1' then
+				if intr_clear_valid = '1' AND intr_clear(6) = '1' then
 					fc_intr_reg <= '0';
 				else
-					if cts_reg /= cts then
+					if ctsn_reg /= uart_ctsn then
 						fc_intr_reg <= '1';
 					end if;
 				end if;
-				-- store cts signal to check for change
-				cts_reg <= cts;
+				-- store ctsn signal to check for change
+				ctsn_reg <= uart_ctsn;
 			end if;
 		end if;
 	end process;

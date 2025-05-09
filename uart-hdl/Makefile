@@ -10,7 +10,7 @@ DOCNAME = uart_trm.tex
 DOCDIR = $(PWD)/docs
 DOCBUILD = $(DOCDIR)/build
 
-MODULES = baud_gen uart_rx uart_tx fifo axil_control
+MODULES = axil_control baud_gen fifo interrupt_generation uart_rx uart_tx
 SRCS = $(addprefix srcs/,$(addsuffix .vhd,$(MODULES)))
 TESTS = $(addprefix tests/,$(addsuffix _tb.vhd,$(MODULES)))
 

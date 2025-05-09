@@ -109,7 +109,7 @@ architecture Behavioral of axil_control is
 	signal axil_arready: std_logic := '0';
 	signal axil_rvalid, axil_rvalid_next: std_logic := '0';
 
-	-- slave registers
+	-- target registers
 	-- UART DR (data register)
 	-- there is no actual register here, writes and reads go directly to external fifos
 
@@ -140,7 +140,7 @@ architecture Behavioral of axil_control is
 	-- UART ICLR (interrupt clear register)
 	-- there is no actual register here, writes go directly to external interrupt module
 
-	-- function to apply write strobe to slave registers
+	-- function to apply write strobe to target registers
 	function apply_wstrb (
 		old_data : in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 		new_data : in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);

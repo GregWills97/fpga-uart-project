@@ -172,7 +172,7 @@ begin
 		rst	   => rst,
 		wr	   => rx_done,
 		rd	   => rx_fifo_rd,
-		d_in	   => rx_fifo_data_out,
+		d_in	   => rx_fifo_data_in,
 		d_out	   => rx_fifo_data_out,
 		full	   => rx_fifo_full,
 		near_full  => rx_fifo_near_full,

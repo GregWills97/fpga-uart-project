@@ -42,13 +42,12 @@ architecture Behavioral of uart_device_top_tb is
 	signal UARTIRSTS: std_logic_vector(5 downto 0) := b"100000"; --interrupt raw status
 	signal UARTICLR:  std_logic_vector(5 downto 0) := b"100100"; --interrupt clear
 
-	signal rx: std_logic := '0';
+	signal rx: std_logic := '1';
 
 	type data_array is array (0 to 7) of std_logic_vector(31 downto 0);
 	procedure write_axi (
 			addr: in std_logic_vector(5 downto 0);
-			data: in data_array;
-			num_txns: in integer;
+			data: in std_logic_vector(31 downto 0);
 			axi_error_flag: out boolean;
 
 			-- axi signals
@@ -67,36 +66,30 @@ architecture Behavioral of uart_device_top_tb is
 	begin
 		axi_error_flag := false;
 
+		--write transaction
 		axil_awvalid <= '1';
 		axil_wvalid  <= '1';
-		for i in 0 to num_txns-1 loop
-			--write transaction
-			axil_awaddr  <= addr;
-			axil_wdata   <= data(i);
-			axil_wstrb   <= "1111";
-			axil_bready  <= '1';
+		axil_awaddr  <= addr;
+		axil_wdata   <= data;
+		axil_wstrb   <= "1111";
+		axil_bready  <= '1';
 
-			wait until rising_edge(axil_clk) AND
-				(axil_awready = '1' AND axil_wready = '1');
+		wait until rising_edge(axil_clk) AND
+			(axil_awready = '1' AND axil_wready = '1');
 
-			-- write response
-			if i = num_txns-1 then
-				axil_awvalid <= '0';
-				axil_wvalid  <= '0';
-			end if;
-			wait until rising_edge(axil_clk) AND axil_bvalid = '1';
+		axil_awvalid <= '0';
+		axil_wvalid  <= '0';
 
-			axil_bready <= '0';
-			if axil_bresp /= "00" then
-				axi_error_flag := true;
-			end if;
-		end loop;
+		wait until rising_edge(axil_clk) AND axil_bvalid = '1';
+		axil_bready <= '0';
+		if axil_bresp /= "00" then
+			axi_error_flag := true;
+		end if;
 	end write_axi;
 
 	procedure read_axi (
 			addr: in std_logic_vector(5 downto 0);
-			data: out data_array;
-			num_txns: in integer;
+			data: out std_logic_vector(31 downto 0);
 			axi_error_flag: out boolean;
 
 			-- axi signals
@@ -112,25 +105,24 @@ architecture Behavioral of uart_device_top_tb is
 	begin
 		axi_error_flag := false;
 
-		for i in 0 to num_txns-1 loop
-			axil_araddr  <= addr;
-			axil_arvalid <= '1';
-			axil_rready  <= '1';
-			wait until rising_edge(axil_clk) AND axil_rvalid = '1';
+		axil_araddr  <= addr;
+		axil_arvalid <= '1';
+		axil_rready  <= '1';
+		wait until rising_edge(axil_clk) AND axil_rvalid = '1';
 
-			data(i) := axil_rdata;
-			if axil_rresp /= "00" then
-				axi_error_flag := true;
-			end if;
-		end loop;
+		data := axil_rdata;
+		if axil_rresp /= "00" then
+			axi_error_flag := true;
+		end if;
+
 		axil_arvalid <= '0';
 		axil_rready  <= '0';
 	end read_axi;
 
 	procedure send_uart_byte (
-			signal data_length: in std_logic_vector(1 downto 0);
-			signal par_ctrl: in std_logic_vector(1 downto 0);
-			signal num_stop: in std_logic;
+			variable data_length: in std_logic_vector(1 downto 0);
+			variable par_ctrl: in std_logic_vector(1 downto 0);
+			variable num_stop: in std_logic;
 			data_in: in std_logic_vector(7 downto 0);
 			gen_perr: in boolean;
 			gen_ferr: in boolean;
@@ -243,27 +235,50 @@ begin
 	clk <= not clk after clk_period/2 when finished /= '1' else '0';
 
 	process
-		--variable mask: std_logic_vector(31 downto 0) := (others => '0');
-		--variable test_data: data_array := (others => (others => '0'));
-		--variable ret_data:  data_array := (others => (others => '0'));
-		--variable axi_error: boolean := false;
+		variable write_data: std_logic_vector(31 downto 0) := (others => '0');
+		variable read_data:  std_logic_vector(31 downto 0) := (others => '0');
+		variable mask:	     std_logic_vector(31 downto 0) := (others => '0');
+		variable axi_error: boolean := false;
+
+		variable stop_bits, break_gen: std_logic := '0';
+		variable data_bits, parity_ctrl: std_logic_vector(1 downto 0) := "00";
 	begin
-		--wait until rising_edge(clk) AND rstn = '1';
-		--wait for clk_period;
+		wait until rising_edge(clk) AND rstn = '1';
+		wait for clk_period;
 
-		---- check that empty flags are on
-		--read_axi(UARTFR, ret_data, 1, axi_error, clk, araddr, arvalid, arready,
-		--	 rdata, rresp, rvalid, rready);
-		--if ret_data(0)(5 downto 0) /= "101000" then
-		--	report "TEST_ERROR: axi does not report fifo empty on start";
-		--end if;
-		--ret_data := (others => (others => '0'));
+		-- setup uart configuration
+		-- line control (8 data bits, 1 stop bit, no parity, no break gen)
+		stop_bits := '0';
+		break_gen := '0';
+		data_bits := "11";
+		parity_ctrl := "00";
+		write_data := (31 downto 6 => '0') &
+			      data_bits & stop_bits & parity_ctrl & break_gen;
+		write_axi(UARTLCR, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 
-		----fill up fifo
-		--test_data := (x"DEADBEEF", x"BEEFDEAD", x"12345678", x"87654321",
-		--	      x"10ABCDEF", x"FFFFFFFF", x"55555555", x"1A2B3C4D");
-		--write_axi(UARTDR, test_data, 8, axi_error, clk, awaddr, awvalid, awready,
-		--	  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		-- baud divisor (115200 baud -> 67 INT / 52 FRAC)
+		write_data := x"00000043";
+		write_axi(UARTIBRD, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		write_data := x"00000034";
+		write_axi(UARTFBRD, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- control register (enables uart and receiver)
+		write_data := x"00000005";
+		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- send transaction
+		send_uart_byte(data_bits, parity_ctrl, stop_bits, x"AA", false, false, rx);
+
+		-- check readback from data register
+		read_axi(UARTDR, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(11 downto 0) /= x"0AA" then
+			report "TEST_ERROR: UARTDR read does not return correct data";
+		end if;
 
 		report "TEST_SUCCESS: end of test";
 		finished <= '1';

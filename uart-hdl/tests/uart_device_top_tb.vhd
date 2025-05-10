@@ -44,7 +44,7 @@ architecture Behavioral of uart_device_top_tb is
 
 	signal rx: std_logic := '1';
 
-	type data_array is array (0 to 7) of std_logic_vector(31 downto 0);
+	type data_array is array (0 to 3) of std_logic_vector(7 downto 0);
 	procedure write_axi (
 			addr: in std_logic_vector(5 downto 0);
 			data: in std_logic_vector(31 downto 0);
@@ -124,8 +124,9 @@ architecture Behavioral of uart_device_top_tb is
 			variable par_ctrl: in std_logic_vector(1 downto 0);
 			variable num_stop: in std_logic;
 			data_in: in std_logic_vector(7 downto 0);
-			gen_perr: in boolean;
 			gen_ferr: in boolean;
+			gen_perr: in boolean;
+			gen_berr: in boolean;
 			signal tx_line: out std_logic
 		) is
 			variable parity_bit: std_logic;
@@ -151,12 +152,17 @@ architecture Behavioral of uart_device_top_tb is
 			when others =>
 				num_bits := 8;
 		end case;
-		-- data bits
-		for i in 0 to num_bits-1 loop
-			parity_bit := parity_bit XOR data_in(i);
-			tx_line <= data_in(i);
-			wait for baud_rate;
-		end loop;
+
+		if gen_berr = true then
+			wait for baud_rate * num_bits;
+		else
+			-- data bits
+			for i in 0 to num_bits-1 loop
+				parity_bit := parity_bit XOR data_in(i);
+				tx_line <= data_in(i);
+				wait for baud_rate;
+			end loop;
+		end if;
 
 		--if parity enabled send parity bit
 		if unsigned(par_ctrl) > "00" then
@@ -166,16 +172,20 @@ architecture Behavioral of uart_device_top_tb is
 				gen_err_bit := '0';
 			end if;
 
-			if par_ctrl = "01" then
-				tx_line <= not parity_bit XOR gen_err_bit;
+			if gen_berr = true then
+				tx_line <= '0';
 			else
-				tx_line <= parity_bit XOR gen_err_bit;
+				if par_ctrl = "01" then
+					tx_line <= not parity_bit XOR gen_err_bit;
+				else
+					tx_line <= parity_bit XOR gen_err_bit;
+				end if;
 			end if;
 			wait for baud_rate;
 		end if;
 
 		--stop bit
-		if gen_ferr = true then
+		if gen_ferr = true OR gen_berr = true then
 			tx_line <= '0';
 		else
 			tx_line <= '1';
@@ -237,8 +247,10 @@ begin
 	process
 		variable write_data: std_logic_vector(31 downto 0) := (others => '0');
 		variable read_data:  std_logic_vector(31 downto 0) := (others => '0');
-		variable mask:	     std_logic_vector(31 downto 0) := (others => '0');
-		variable axi_error: boolean := false;
+		variable axi_error:  boolean := false;
+		variable test_mask:  std_logic_vector(7 downto 0) := (others => '0');
+		variable test_err:   std_logic_vector(3 downto 0) := (others => '0');
+		variable test_data:  data_array := (x"DE", x"AD", x"BE", x"EF");
 
 		variable stop_bits, break_gen: std_logic := '0';
 		variable data_bits, parity_ctrl: std_logic_vector(1 downto 0) := "00";
@@ -247,16 +259,6 @@ begin
 		wait for clk_period;
 
 		-- setup uart configuration
-		-- line control (8 data bits, 1 stop bit, no parity, no break gen)
-		stop_bits := '0';
-		break_gen := '0';
-		data_bits := "11";
-		parity_ctrl := "00";
-		write_data := (31 downto 6 => '0') &
-			      data_bits & stop_bits & parity_ctrl & break_gen;
-		write_axi(UARTLCR, write_data, axi_error, clk, awaddr, awvalid, awready,
-			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
-
 		-- baud divisor (115200 baud -> 67 INT / 52 FRAC)
 		write_data := x"00000043";
 		write_axi(UARTIBRD, write_data, axi_error, clk, awaddr, awvalid, awready,
@@ -265,20 +267,79 @@ begin
 		write_axi(UARTFBRD, write_data, axi_error, clk, awaddr, awvalid, awready,
 			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 
-		-- control register (enables uart and receiver)
-		write_data := x"00000005";
-		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
-			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		for i in test_data'range loop --test data loop
+		for j in 0 to 3 loop --data bit loop
+		for k in 0 to 2 loop --parity config loop
+		for l in 0 to 1 loop --stop bit config loop
+			-- line control
+			break_gen := '0';
+			data_bits := std_logic_vector(to_unsigned(j, data_bits'length));
+			parity_ctrl := std_logic_vector(to_unsigned(k, data_bits'length));
+			if l = 0 then
+				stop_bits := '0';
+			else
+				stop_bits := '1';
+			end if;
+			write_data := (31 downto 6 => '0') &
+				      data_bits & stop_bits & parity_ctrl & break_gen;
+			write_axi(UARTLCR, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 
-		-- send transaction
-		send_uart_byte(data_bits, parity_ctrl, stop_bits, x"AA", false, false, rx);
+			-- control register (enables uart and receiver)
+			write_data := x"00000005";
+			write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 
-		-- check readback from data register
-		read_axi(UARTDR, read_data, axi_error, clk, araddr, arvalid, arready,
-			 rdata, rresp, rvalid, rready);
-		if read_data(11 downto 0) /= x"0AA" then
-			report "TEST_ERROR: UARTDR read does not return correct data";
-		end if;
+			-- send transactions and errors
+			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
+				       false, false, false, rx);
+			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
+				       true, false, false, rx);
+			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
+				       false, true, false, rx);
+			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
+				       false, false, true, rx);
+
+			-- check readback from data register
+			for m in 0 to 3 loop
+				read_axi(UARTDR, read_data, axi_error, clk, araddr, arvalid, arready,
+					 rdata, rresp, rvalid, rready);
+				test_mask := std_logic_vector(to_unsigned(2**(j + 5)-1, test_mask'length));
+				case m is
+					when 0 => -- no errors
+						test_err := b"0000";
+					when 1 => -- frame error
+						test_err := b"0001";
+					when 2 => -- parity error
+						if k = 0 then -- no parity
+							test_err := b"0000";
+						else
+							test_err := b"0010";
+						end if;
+					when 3 => -- break error
+						test_mask := (others => '0');
+						test_err := b"0100";
+				end case;
+				if read_data(11 downto 0) /= test_err & (test_data(i) AND test_mask) then
+					report "TEST_ERROR: UARTDR read does not return correct data";
+					report "TEST_ERROR: EXPECT: " &
+						integer'image(to_integer(unsigned(test_err))) &
+						":" &
+						integer'image(to_integer(unsigned(test_data(i) AND test_mask)));
+					report "TEST_ERROR: GOT:    " &
+						integer'image(to_integer(unsigned(read_data(11 downto 8)))) &
+						":" &
+						integer'image(to_integer(unsigned(read_data(7 downto 0))));
+				end if;
+			end loop;
+			-- control register (disables uart and receiver)
+			write_data := x"00000000";
+			write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		end loop;
+		end loop;
+		end loop;
+		end loop;
 
 		report "TEST_SUCCESS: end of test";
 		finished <= '1';

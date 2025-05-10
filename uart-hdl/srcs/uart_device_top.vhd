@@ -166,7 +166,7 @@ begin
 	-------------------------------
 	-- rx fifo instantiation
 	rx_fifo: entity work.fifo
-	Generic map(WORD_SIZE => 11, DEPTH => 4)
+	Generic map(WORD_SIZE => 11, DEPTH => 5)
 	Port map(
 		clk	   => clk,
 		rst	   => rst,

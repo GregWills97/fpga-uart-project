@@ -65,7 +65,7 @@ begin
 			case write_read is
 				--read
 				when "01" =>
-					if (empty_flag <= '0') then  --if not empty
+					if empty_flag = '0' then  --if not empty
 						if (r_addr + 1 = w_addr) then
 							empty_flag <= '1';
 						end if;
@@ -75,7 +75,7 @@ begin
 
 				--write
 				when "10" =>
-					if (full_flag <= '0') then  --if not full
+					if full_flag = '0' then  --if not full
 						if (w_addr + 1 = r_addr) then
 							full_flag <= '1';
 						end if;

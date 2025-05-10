@@ -44,7 +44,7 @@ architecture Behavioral of uart_device_top_tb is
 
 	signal rx: std_logic := '1';
 
-	type data_array is array (0 to 3) of std_logic_vector(7 downto 0);
+	type data_array is array (0 to 32) of std_logic_vector(7 downto 0);
 	procedure write_axi (
 			addr: in std_logic_vector(5 downto 0);
 			data: in std_logic_vector(31 downto 0);
@@ -250,7 +250,8 @@ begin
 		variable axi_error:  boolean := false;
 		variable test_mask:  std_logic_vector(7 downto 0) := (others => '0');
 		variable test_err:   std_logic_vector(3 downto 0) := (others => '0');
-		variable test_data:  data_array := (x"DE", x"AD", x"BE", x"EF");
+		variable test_data:  data_array := (x"DE", x"AD", x"BE", x"EF",
+						    others => (others => '0'));
 
 		variable stop_bits, break_gen: std_logic := '0';
 		variable data_bits, parity_ctrl: std_logic_vector(1 downto 0) := "00";
@@ -267,7 +268,7 @@ begin
 		write_axi(UARTFBRD, write_data, axi_error, clk, awaddr, awvalid, awready,
 			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 
-		for i in test_data'range loop --test data loop
+		for i in 0 to 3 loop --test data loop
 		for j in 0 to 3 loop --data bit loop
 		for k in 0 to 2 loop --parity config loop
 		for l in 0 to 1 loop --stop bit config loop
@@ -332,6 +333,7 @@ begin
 						integer'image(to_integer(unsigned(read_data(7 downto 0))));
 				end if;
 			end loop;
+
 			-- control register (disables uart and receiver)
 			write_data := x"00000000";
 			write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
@@ -340,6 +342,57 @@ begin
 		end loop;
 		end loop;
 		end loop;
+
+		-- line control
+		break_gen := '0';
+		data_bits := b"11";
+		parity_ctrl := b"00";
+		stop_bits := '0';
+		write_data := (31 downto 6 => '0') &
+			      data_bits & stop_bits & parity_ctrl & break_gen;
+		write_axi(UARTLCR, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- control register (enables uart and receiver)
+		write_data := x"00000005";
+		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- check overrun error
+		for n in 0 to 32 loop
+			send_uart_byte(data_bits, parity_ctrl, stop_bits,
+				       std_logic_vector(to_unsigned(n, test_data(0)'length)),
+				       false, false, false, rx);
+		end loop;
+
+		for n in 0 to 31 loop
+			if n = 0 then
+				test_err := b"1000"; --overrun
+			else
+				test_err := b"0000";
+			end if;
+
+			test_mask := std_logic_vector(to_unsigned(2**(8)-1, test_mask'length));
+			test_data(n) := std_logic_vector(to_unsigned(n, test_data(0)'length));
+			read_axi(UARTDR, read_data, axi_error, clk, araddr, arvalid, arready,
+				 rdata, rresp, rvalid, rready);
+			if read_data(11 downto 0) /= (test_err & test_data(n)) then
+				report "TEST_ERROR: UARTDR read does not return correct data";
+				report "TEST_ERROR: EXPECT: " &
+					integer'image(to_integer(unsigned(test_err))) &
+					":" &
+					integer'image(to_integer(unsigned(test_data(n) AND test_mask)));
+				report "TEST_ERROR: GOT:    " &
+					integer'image(to_integer(unsigned(read_data(11 downto 8)))) &
+					":" &
+					integer'image(to_integer(unsigned(read_data(7 downto 0))));
+			end if;
+		end loop;
+
+		-- control register (disables uart and receiver)
+		write_data := x"00000000";
+		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 
 		report "TEST_SUCCESS: end of test";
 		finished <= '1';

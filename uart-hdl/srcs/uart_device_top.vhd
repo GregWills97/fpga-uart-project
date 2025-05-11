@@ -1,7 +1,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-
 entity uart_device_top is
 	generic (
 		-- Parameters of Axi Slave Bus Interface S00_AXI
@@ -34,8 +33,19 @@ entity uart_device_top is
 		S00_AXI_AWPROT	: in  std_logic_vector(2 downto 0);
 		S00_AXI_ARPROT	: in  std_logic_vector(2 downto 0);
 
+		-- uart top-level signals
 		uart_rstn	: in  std_logic;
-		uart_rx		: out std_logic
+		uart_ctsn	: in  std_logic;
+		uart_rtsn	: out std_logic;
+		uart_rx		: out std_logic;
+		uart_tx		: in  std_logic;
+
+		-- interrupts
+		uart_tx_intr	: out std_logic;
+		uart_rx_intr	: out std_logic;
+		uart_er_intr	: out std_logic;
+		uart_fc_intr	: out std_logic;
+		uart_intr	: out std_logic
 	);
 end uart_device_top;
 
@@ -217,5 +227,33 @@ begin
 	-- rx signal assignment
 	rx_fifo_data_in <= break_error & parity_error & frame_error & rx_data_out;
 	rx_enable <= uart_rx_enable AND uart_enable;
+
+	--------------------------
+	-- Interrupt Generation --
+	--------------------------
+	-- interrupt generation instantiation
+	interrupt_generation: entity work.interrupt_generation
+	Port map(
+		clk		   => clk,
+		rst		   => rst,
+		tx_near_empty_flag => tx_fifo_near_empty,
+		rx_near_full_flag  => rx_fifo_near_full,
+		rx_parity_err	   => parity_error,
+		rx_frame_err	   => frame_error,
+		rx_break_err	   => break_error,
+		rx_overrun_err	   => overrun_error,
+		uart_ctsn	   => uart_ctsn,
+		uart_rtsn	   => uart_rtsn,
+		intr_mask	   => intr_mask,
+		intr_clear	   => intr_clear,
+		intr_clear_valid   => intr_clear_valid,
+		intr_status_mask   => intr_masked_sts,
+		intr_status_raw	   => intr_raw_sts,
+		uart_tx_intr	   => uart_tx_intr,
+		uart_rx_intr	   => uart_rx_intr,
+		uart_er_intr	   => uart_er_intr,
+		uart_fc_intr	   => uart_fc_intr,
+		uart_intr	   => uart_intr
+	);
 
 end Behavioral;

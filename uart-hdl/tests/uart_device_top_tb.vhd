@@ -30,6 +30,13 @@ architecture Behavioral of uart_device_top_tb is
 	--unused trustzone
 	signal awprot, arprot: std_logic_vector(2 downto 0) := (others => '0');
 
+	--top level i/o
+	signal uart_ctsn, uart_rtsn: std_logic := '1';
+	signal uart_rx, uart_tx: std_logic := '1';
+	signal uart_tx_intr, uart_rx_intr: std_logic := '0';
+	signal uart_er_intr, uart_fc_intr: std_logic := '0';
+	signal uart_intr: std_logic := '0';
+
 	--control registers
 	signal UARTDR:	  std_logic_vector(5 downto 0) := b"000000"; --data registers
 	signal UARTFR:	  std_logic_vector(5 downto 0) := b"000100"; --flag register
@@ -41,8 +48,6 @@ architecture Behavioral of uart_device_top_tb is
 	signal UARTIMSTS: std_logic_vector(5 downto 0) := b"011100"; --interrupt masked status
 	signal UARTIRSTS: std_logic_vector(5 downto 0) := b"100000"; --interrupt raw status
 	signal UARTICLR:  std_logic_vector(5 downto 0) := b"100100"; --interrupt clear
-
-	signal rx: std_logic := '1';
 
 	type data_array is array (0 to 32) of std_logic_vector(7 downto 0);
 	procedure write_axi (
@@ -228,7 +233,15 @@ begin
 		S00_AXI_AWPROT	 => awprot,
 		S00_AXI_ARPROT	 => arprot,
 		uart_rstn	 => rstn,
-		uart_rx		 => rx
+		uart_ctsn	 => uart_ctsn,
+		uart_rtsn	 => uart_rtsn,
+		uart_rx		 => uart_rx,
+		uart_tx		 => uart_tx,
+		uart_tx_intr	 => uart_tx_intr,
+		uart_rx_intr	 => uart_rx_intr,
+		uart_er_intr	 => uart_er_intr,
+		uart_fc_intr	 => uart_fc_intr,
+		uart_intr	 => uart_intr
 	);
 
 	--reset process
@@ -293,13 +306,20 @@ begin
 
 			-- send transactions and errors
 			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
-				       false, false, false, rx);
+				       false, false, false, uart_rx);
 			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
-				       true, false, false, rx);
+				       true, false, false, uart_rx);
 			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
-				       false, true, false, rx);
+				       false, true, false, uart_rx);
 			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
-				       false, false, true, rx);
+				       false, false, true, uart_rx);
+
+			-- check flag register
+			read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,
+				 rdata, rresp, rvalid, rready);
+			if read_data(5 downto 4) /= "00" then
+				report "TEST_ERROR: UARTFR does not report correct rx fifo status";
+			end if;
 
 			-- check readback from data register
 			for m in 0 to 3 loop
@@ -334,6 +354,13 @@ begin
 				end if;
 			end loop;
 
+			-- check flag register
+			read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,
+				 rdata, rresp, rvalid, rready);
+			if read_data(5 downto 4) /= "10" then
+				report "TEST_ERROR: UARTFR does not report correct rx fifo status";
+			end if;
+
 			-- control register (disables uart and receiver)
 			write_data := x"00000000";
 			write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
@@ -353,6 +380,17 @@ begin
 		write_axi(UARTLCR, write_data, axi_error, clk, awaddr, awvalid, awready,
 			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 
+		-- test without enabled
+		send_uart_byte(data_bits, parity_ctrl, stop_bits, x"AA", false, false, false, uart_rx);
+
+		-- check flag register (should still be empty)
+		read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(5 downto 4) /= "10" then
+			report "TEST_ERROR: UARTFR does not report correct rx fifo status";
+		end if;
+
+
 		-- control register (enables uart and receiver)
 		write_data := x"00000005";
 		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
@@ -362,8 +400,15 @@ begin
 		for n in 0 to 32 loop
 			send_uart_byte(data_bits, parity_ctrl, stop_bits,
 				       std_logic_vector(to_unsigned(n, test_data(0)'length)),
-				       false, false, false, rx);
+				       false, false, false, uart_rx);
 		end loop;
+
+		-- check flag register
+		read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(5 downto 4) /= "01" then
+			report "TEST_ERROR: UARTFR does not report correct rx fifo status";
+		end if;
 
 		for n in 0 to 31 loop
 			if n = 0 then
@@ -388,6 +433,13 @@ begin
 					integer'image(to_integer(unsigned(read_data(7 downto 0))));
 			end if;
 		end loop;
+
+		-- check flag register
+		read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(5 downto 4) /= "10" then
+			report "TEST_ERROR: UARTFR does not report correct rx fifo status";
+		end if;
 
 		-- control register (disables uart and receiver)
 		write_data := x"00000000";

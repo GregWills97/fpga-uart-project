@@ -161,6 +161,11 @@ begin
 		intr_clear	 => intr_clear
 	);
 
+	-- assign contrl signals
+	tx_busy   <= not tx_fifo_empty;
+	tx_cts    <= not uart_ctsn;
+	uart_rtsn <= not rts;
+
 	-------------------------
 	-- BAUD RATE GENERATOR --
 	-------------------------

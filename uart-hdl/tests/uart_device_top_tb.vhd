@@ -268,12 +268,14 @@ begin
 
 		variable stop_bits, break_gen: std_logic := '0';
 		variable data_bits, parity_ctrl: std_logic_vector(1 downto 0) := "00";
+		variable intr_mask: std_logic_vector(6 downto 0) := (others => '0');
+		variable intr_rx_err_mask: unsigned(3 downto 0) := (others => '0');
 	begin
 		wait until rising_edge(clk) AND rstn = '1';
 		wait for clk_period;
 
 		-- setup uart configuration
-		-- baud divisor (115200 baud -> 67 INT / 52 FRAC)
+		-- baud divisor (125 MHz clock - 115200 baud -> 67 INT / 52 FRAC)
 		write_data := x"00000043";
 		write_axi(UARTIBRD, write_data, axi_error, clk, awaddr, awvalid, awready,
 			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
@@ -299,6 +301,13 @@ begin
 			write_axi(UARTLCR, write_data, axi_error, clk, awaddr, awvalid, awready,
 				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 
+			--set interrupt mask
+			intr_mask := '0' & std_logic_vector(intr_rx_err_mask) & b"00";
+			write_data := (31 downto 7 => '0') & intr_mask;
+			write_axi(UARTIMASK, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+			intr_rx_err_mask := intr_rx_err_mask + 1;
+
 			-- control register (enables uart and receiver)
 			write_data := x"00000005";
 			write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
@@ -307,12 +316,95 @@ begin
 			-- send transactions and errors
 			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
 				       false, false, false, uart_rx);
+
+			-- send frame error
 			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
 				       true, false, false, uart_rx);
+			-- check frame error interrupt
+			read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+				 rdata, rresp, rvalid, rready);
+			if read_data(2) /= '1' then
+				report "TEST_ERROR: UARTIRSTS does not report frame error";
+			end if;
+			read_axi(UARTIMSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+				 rdata, rresp, rvalid, rready);
+			if read_data(2) /= ('1' AND intr_mask(2)) then
+				report "TEST_ERROR: UARTIMSTS does not report frame error";
+			elsif uart_intr /= read_data(2) then
+				report "TEST_ERROR: uart_intr not driven correctly";
+			elsif uart_er_intr /= read_data(2) then
+				report "TEST_ERROR: uart_er_intr not driven correctly";
+			end if;
+
+			-- clear frame error interrupt
+			write_data := x"00000004";
+			write_axi(UARTICLR, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+			read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+				 rdata, rresp, rvalid, rready);
+			if read_data(2) /= '0' then
+				report "TEST_ERROR: interrupt not cleared";
+			end if;
+
+			-- send parity error
 			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
 				       false, true, false, uart_rx);
+			if k /= 0 then -- check parity enabled
+				-- check parity error interrupt
+				read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+					 rdata, rresp, rvalid, rready);
+				if read_data(3) /= '1' then
+					report "TEST_ERROR: UARTIRSTS does not report parity error";
+				end if;
+				read_axi(UARTIMSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+					 rdata, rresp, rvalid, rready);
+				if read_data(3) /= ('1' AND intr_mask(3)) then
+					report "TEST_ERROR: UARTIMSTS does not report parity error";
+				elsif uart_intr /= read_data(3) then
+					report "TEST_ERROR: uart_intr not driven correctly";
+				elsif uart_er_intr /= read_data(3) then
+					report "TEST_ERROR: uart_er_intr not driven correctly";
+				end if;
+
+				-- clear parity error interrupt
+				write_data := x"00000008";
+				write_axi(UARTICLR, write_data, axi_error, clk, awaddr, awvalid, awready,
+					  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+				read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+					 rdata, rresp, rvalid, rready);
+				if read_data(3) /= '0' then
+					report "TEST_ERROR: interrupt not cleared";
+				end if;
+			end if;
+
+			-- send break error
 			send_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i),
 				       false, false, true, uart_rx);
+			-- check break error interrupt
+			read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+				 rdata, rresp, rvalid, rready);
+			if read_data(4) /= '1' then
+				report "TEST_ERROR: UARTIRSTS does not report break error";
+			end if;
+			read_axi(UARTIMSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+				 rdata, rresp, rvalid, rready);
+			if read_data(4) /= ('1' AND intr_mask(4)) then
+				report "TEST_ERROR: UARTIMSTS does not report break error";
+			elsif uart_intr /= read_data(4) then
+				report "TEST_ERROR: uart_intr not driven correctly";
+			elsif uart_er_intr /= read_data(4) then
+				report "TEST_ERROR: uart_er_intr not driven correctly";
+			end if;
+
+			-- clear break error interrupt
+			write_data := x"00000010";
+			write_axi(UARTICLR, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+			read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+				 rdata, rresp, rvalid, rready);
+			if read_data(4) /= '0' then
+				report "TEST_ERROR: interrupt not cleared";
+			end if;
 
 			-- check flag register
 			read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,
@@ -369,7 +461,6 @@ begin
 		end loop;
 		end loop;
 		end loop;
-
 		-- line control
 		break_gen := '0';
 		data_bits := b"11";
@@ -390,7 +481,10 @@ begin
 			report "TEST_ERROR: UARTFR does not report correct rx fifo status";
 		end if;
 
-
+		--set interrupt mask
+		write_data := x"0000007F";
+		write_axi(UARTIMASK, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 		-- control register (enables uart and receiver)
 		write_data := x"00000005";
 		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
@@ -401,7 +495,40 @@ begin
 			send_uart_byte(data_bits, parity_ctrl, stop_bits,
 				       std_logic_vector(to_unsigned(n, test_data(0)'length)),
 				       false, false, false, uart_rx);
+			if n = 24 then
+				-- check rx interrupt
+				read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+					 rdata, rresp, rvalid, rready);
+				if read_data(1) /= '1' then
+					report "TEST_ERROR: UARTIRSTS does not report rx interrupt";
+				end if;
+				read_axi(UARTIMSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+					 rdata, rresp, rvalid, rready);
+				if read_data(1) /= '1' then
+					report "TEST_ERROR: UARTIMSTS does not report rx interrupt";
+				elsif uart_intr /= read_data(1) then
+					report "TEST_ERROR: uart_intr not driven correctly";
+				elsif uart_rx_intr /= read_data(1) then
+					report "TEST_ERROR: uart_er_intr not driven correctly";
+				end if;
+			end if;
 		end loop;
+
+		-- check overrun interrupt
+		read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(5) /= '1' then
+			report "TEST_ERROR: UARTIRSTS does not report overrun interrupt";
+		end if;
+		read_axi(UARTIMSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(5) /= '1' then
+			report "TEST_ERROR: UARTIMSTS does not report overrun interrupt";
+		elsif uart_er_intr /= read_data(5) then
+			report "TEST_ERROR: uart_er_intr not driven correctly";
+		elsif uart_intr /= read_data(5) then
+			report "TEST_ERROR: uart_intr not driven correctly";
+		end if;
 
 		-- check flag register
 		read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,
@@ -433,6 +560,32 @@ begin
 					integer'image(to_integer(unsigned(read_data(7 downto 0))));
 			end if;
 		end loop;
+
+		-- clear overrun error interrupt
+		write_data := x"00000020";
+		write_axi(UARTICLR, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(5) /= '0' then
+			report "TEST_ERROR: interrupt not cleared";
+		end if;
+
+		-- check rx interrupt
+		read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(1) /= '0' then
+			report "TEST_ERROR: UARTIRSTS does not report rx interrupt";
+		end if;
+		read_axi(UARTIMSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(1) /= '0' then
+			report "TEST_ERROR: UARTIMSTS does not report rx interrupt";
+		elsif uart_rx_intr /= read_data(1) then
+			report "TEST_ERROR: uart_er_intr not driven correctly";
+		elsif uart_intr /= read_data(1) then
+			report "TEST_ERROR: uart_intr not driven correctly";
+		end if;
 
 		-- check flag register
 		read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,

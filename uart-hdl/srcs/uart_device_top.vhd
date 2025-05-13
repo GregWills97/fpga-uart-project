@@ -1,6 +1,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
+
 entity uart_device_top is
 	generic (
 		-- Parameters of Axi Slave Bus Interface S00_AXI
@@ -175,6 +176,7 @@ begin
 	-- UART RECEIVER AND RX FIFO --
 	-------------------------------
 	-- rx fifo instantiation
+	rx_fifo_data_in <= break_error & parity_error & frame_error & rx_data_out;
 	rx_fifo: entity work.fifo
 	Generic map(WORD_SIZE => 11, DEPTH => 5)
 	Port map(
@@ -191,6 +193,7 @@ begin
 	);
 
 	-- receiver instantiation
+	rx_enable <= uart_rx_enable AND uart_enable;
 	rx: entity work.uart_rx
 	Generic map(S_TICKS_PER_BAUD => 16, DATA_BITS_MAX => 8)
 	Port map(
@@ -223,10 +226,6 @@ begin
 			end if;
 		end if;
 	end process;
-
-	-- rx signal assignment
-	rx_fifo_data_in <= break_error & parity_error & frame_error & rx_data_out;
-	rx_enable <= uart_rx_enable AND uart_enable;
 
 	--------------------------
 	-- Interrupt Generation --

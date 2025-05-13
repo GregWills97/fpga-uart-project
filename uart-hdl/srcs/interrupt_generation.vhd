@@ -156,16 +156,18 @@ begin
 	uart_tx_intr <= intr_status_mask(0);
 	uart_rx_intr <= intr_status_mask(1);
 
-	er_intr_all  <= intr_status_mask(2) OR
+	uart_er_intr <= intr_status_mask(2) OR
 			intr_status_mask(3) OR
 			intr_status_mask(4) OR
 			intr_status_mask(5);
-	uart_er_intr <= er_intr_all;
 
 	uart_fc_intr <= intr_status_mask(6);
 
 	uart_intr    <= intr_status_mask(6) OR
-			er_intr_all OR
+			intr_status_mask(5) OR
+			intr_status_mask(4) OR
+			intr_status_mask(3) OR
+			intr_status_mask(2) OR
 			intr_status_mask(1) OR
 			intr_status_mask(0);
 

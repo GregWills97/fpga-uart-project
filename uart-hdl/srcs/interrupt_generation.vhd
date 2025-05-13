@@ -48,7 +48,6 @@ architecture Behavioral of interrupt_generation is
 	signal be_intr_reg: std_logic := '0'; --break error interrupt
 	signal pe_intr_reg: std_logic := '0'; --parity error interrupt
 	signal fe_intr_reg: std_logic := '0'; --frame error interrupt
-	signal er_intr_all: std_logic := '0'; --or of all
 
 	signal fc_intr_reg: std_logic := '0'; --modem status interrupt
 begin

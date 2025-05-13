@@ -43,7 +43,7 @@ begin
 			b_reg	  <= (others => '0');
 			p_reg	  <= '0';
 			tx_reg	  <= '1';
-		elsif rising_edge(clk) AND en = '1' then
+		elsif rising_edge(clk) then
 			state_reg <= state_next;
 			s_reg	  <= s_next;
 			n_reg	  <= n_next;
@@ -54,7 +54,7 @@ begin
 	end process;
 
 	--next state logic;
-	process(state_reg, s_reg, n_reg, b_reg, p_reg, s_tick, tx_reg, tx_start,
+	process(state_reg, s_reg, n_reg, b_reg, p_reg, s_tick, tx_reg, tx_start, en,
 		data_bits, parity_ctrl, stop_bits, data_in)
 		type parity_type is (none, even, odd);
 		variable parity_setting: parity_type := none;
@@ -73,7 +73,7 @@ begin
 
 			when idle =>
 				tx_next <= '1';
-				if tx_start = '1' AND s_tick = '1' then
+				if tx_start = '1' AND s_tick = '1' AND en = '1' then
 					state_next <= start;
 					s_next <= (others => '0');
 					b_next <= (others => '0');

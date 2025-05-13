@@ -257,6 +257,7 @@ begin
 	--clk
 	clk <= not clk after clk_period/2 when finished /= '1' else '0';
 
+	-- rx test process
 	process
 		variable write_data: std_logic_vector(31 downto 0) := (others => '0');
 		variable read_data:  std_logic_vector(31 downto 0) := (others => '0');

@@ -38,8 +38,8 @@ entity uart_device_top is
 		uart_rstn	: in  std_logic;
 		uart_ctsn	: in  std_logic;
 		uart_rtsn	: out std_logic;
-		uart_rx		: out std_logic;
-		uart_tx		: in  std_logic;
+		uart_rx		: in  std_logic;
+		uart_tx		: out std_logic;
 
 		-- interrupts
 		uart_tx_intr	: out std_logic;
@@ -88,12 +88,14 @@ architecture Behavioral of uart_device_top is
 	signal rx_data_out: std_logic_vector(7 downto 0);
 
 	-- tx fifo i/o
-	signal tx_fifo_data: std_logic_vector(7 downto 0);
+	signal tx_fifo_data_in, tx_fifo_data_out: std_logic_vector(7 downto 0);
 	signal tx_fifo_wr: std_logic := '0';
 	signal tx_fifo_full, tx_fifo_near_full: std_logic := '0';
 	signal tx_fifo_empty, tx_fifo_near_empty: std_logic := '0';
 	signal tx_busy, tx_cts: std_logic := '0';
 
+	-- tx i/o
+	signal tx_enable, tx_start, tx_done: std_logic := '0';
 begin
 
 	--global signal assignment
@@ -135,7 +137,7 @@ begin
 		rx_fifo_rd	 => rx_fifo_rd,
 		rx_fifo_empty	 => rx_fifo_empty,
 		rx_fifo_full	 => rx_fifo_full,
-		tx_fifo_data	 => tx_fifo_data,
+		tx_fifo_data	 => tx_fifo_data_in,
 		tx_fifo_wr	 => tx_fifo_wr,
 		tx_fifo_empty	 => tx_fifo_empty,
 		tx_fifo_full	 => tx_fifo_full,
@@ -226,6 +228,45 @@ begin
 			end if;
 		end if;
 	end process;
+
+	----------------------------------
+	-- UART TRANSMITTER AND TX FIFO --
+	----------------------------------
+	-- tx fifo instantiation
+	tx_fifo: entity work.fifo
+	Generic map(WORD_SIZE => 8, DEPTH => 5)
+	Port map(
+		clk	   => clk,
+		rst	   => rst,
+		wr	   => tx_fifo_wr,
+		rd	   => tx_done,
+		d_in	   => tx_fifo_data_in,
+		d_out	   => tx_fifo_data_out,
+		full	   => tx_fifo_full,
+		near_full  => tx_fifo_near_full,
+		near_empty => tx_fifo_near_empty,
+		empty	   => tx_fifo_empty
+	);
+
+	-- transmitter instantiation
+	tx_enable <= uart_enable AND uart_tx_enable;
+	tx_start  <= not uart_ctsn AND not tx_fifo_empty when flow_ctrl_enable = '1' else
+		     not tx_fifo_empty;
+	tx: entity work.uart_tx
+	Generic map(S_TICKS_PER_BAUD => 16, DATA_BITS_MAX => 8)
+	Port map(
+		clk	    => clk,
+		rst	    => rst,
+		en	    => tx_enable,
+		tx_start    => tx_start,
+		s_tick	    => s_tick,
+		stop_bits   => stop_bits,
+		parity_ctrl => parity_ctrl,
+		data_bits   => data_bits,
+		data_in	    => tx_fifo_data_out,
+		tx_done	    => tx_done,
+		tx	    => uart_tx
+	);
 
 	--------------------------
 	-- Interrupt Generation --

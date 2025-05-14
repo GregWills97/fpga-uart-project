@@ -265,6 +265,7 @@ begin
 		en	    => tx_enable,
 		tx_start    => tx_start,
 		s_tick	    => s_tick,
+		break_gen   => break_gen,
 		stop_bits   => stop_bits,
 		parity_ctrl => parity_ctrl,
 		data_bits   => data_bits,

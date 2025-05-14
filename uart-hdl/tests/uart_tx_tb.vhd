@@ -19,7 +19,7 @@ architecture Behavioral of uart_tx_tb is
 	signal s_tick: std_logic := '0';
 
 	--tx signals
-	signal tx, tx_done, tx_start, tx_enable: std_logic := '0';
+	signal tx, tx_done, tx_start, tx_enable, break_gen: std_logic := '0';
 
 	signal parity_ctrl: std_logic_vector(1 downto 0) := (others => '0');
 	signal data_bits: std_logic_vector(1 downto 0) := (others => '0');
@@ -58,6 +58,7 @@ begin
 		en	    => tx_enable,
 		tx_start    => tx_start,
 		s_tick	    => s_tick,
+		break_gen   => break_gen,
 		stop_bits   => stop_bits,
 		parity_ctrl => parity_ctrl,
 		data_bits   => data_bits,
@@ -186,6 +187,29 @@ begin
 		end loop;
 		end loop;
 		end loop;
+
+		-- test break generation
+		tx_enable <= '0';
+		data_bits <= b"00";
+		parity_ctrl <= b"00";
+		stop_bits <= '0';
+		break_gen <= '1';
+		tx_fifo_din <= test_data(0);
+		fill_fifo(tx_fifo_wr);
+
+		tx_enable <= '1';
+		for x in 0 to (8 + 1 + 1) loop
+			wait for baud_rate;
+			if tx /= '0' then
+				report "TEST_ERROR: break generation failed";
+			end if;
+		end loop;
+
+		break_gen <= '0';
+		wait for clk_period;
+		if tx /= '1' then
+			report "TEST_ERROR: break generation not released";
+		end if;
 
 		report "TEST_SUCCESS: end of test";
 		finished <= '1';

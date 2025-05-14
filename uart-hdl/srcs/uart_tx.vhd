@@ -13,6 +13,7 @@ entity uart_tx is
 		en:	     in  std_logic;
 		tx_start:    in  std_logic;
 		s_tick:	     in  std_logic;
+		break_gen:   in  std_logic;
 		stop_bits:   in  std_logic;			--0 for 1 stop bit, 1 for 2 stop bits
 		parity_ctrl: in  std_logic_vector(1 downto 0);	--0 for off, 10 for even, 01 for odd
 		data_bits:   in  std_logic_vector(1 downto 0);	--possible values of 5,6,7,8
@@ -173,6 +174,6 @@ begin
 	end process;
 
 	--output logic
-	tx <= tx_reg;
+	tx <= tx_reg AND not break_gen;
 
 end Behavioral;

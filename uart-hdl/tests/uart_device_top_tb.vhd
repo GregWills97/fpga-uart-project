@@ -697,7 +697,7 @@ begin
 				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 			receive_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), uart_tx);
 
-			-- control register (disables uart and receiver)
+			-- control register (disables uart and transmitter)
 			write_data := x"00000000";
 			write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
 				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
@@ -705,6 +705,51 @@ begin
 		end loop;
 		end loop;
 		end loop;
+
+		--test break generation
+		data_bits := b"00";
+		parity_ctrl := b"00";
+		stop_bits := '0';
+		break_gen := '1';
+		write_data := (31 downto 6 => '0') &
+			      data_bits & stop_bits & parity_ctrl & break_gen;
+		write_axi(UARTLCR, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- control register (enables uart and transmitter)
+		write_data := x"00000003";
+		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- start transaction and check for correctness
+		write_data := (31 downto 8 => '0') & test_data(0);
+		write_axi(UARTDR, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		for i in 0 to (8 + 1) loop -- 8 data bits, no parity, 1 stop bit
+			wait for baud_rate;
+			if uart_tx /= '0' then
+				report "TEST_ERROR: break generation failed";
+			end if;
+		end loop;
+
+		-- turn off break_gen
+		break_gen := '0';
+		write_data := (31 downto 6 => '0') &
+			      data_bits & stop_bits & parity_ctrl & break_gen;
+		write_axi(UARTLCR, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- start transaction and check for correctness
+		write_data := (31 downto 8 => '0') & test_data(0);
+		write_axi(UARTDR, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		receive_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(0), uart_tx);
+
+		-- control register (disables uart and transmitter)
+		write_data := x"00000000";
+		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 
 		report "TEST_SUCCESS: end of test";
 		finished <= '1';

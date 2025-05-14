@@ -83,19 +83,19 @@ begin
 
 		wait until rising_edge(clk);
 		if uart_intr /= '1' then
-			report "TEST_FAILURE: expected uart_intr to be raised";
+			report "TEST_ERROR: expected uart_intr to be raised";
 		elsif uart_fc_intr /= '1' then
-			report "TEST_FAILURE: expected uart_fc_intr to be raised";
+			report "TEST_ERROR: expected uart_fc_intr to be raised";
 		elsif uart_er_intr /= '1' then
-			report "TEST_FAILURE: expected uart_er_intr to be raised";
+			report "TEST_ERROR: expected uart_er_intr to be raised";
 		elsif uart_rx_intr /= '1' then
-			report "TEST_FAILURE: expected uart_rx_intr to be raised";
+			report "TEST_ERROR: expected uart_rx_intr to be raised";
 		elsif uart_tx_intr /= '1' then
-			report "TEST_FAILURE: expected uart_tx_intr to be raised";
+			report "TEST_ERROR: expected uart_tx_intr to be raised";
 		end if;
 
 		if intr_status_mask /= (intr_status_raw AND intr_mask) then
-			report "TEST_FAILURE: interrupt status reported incorrectly";
+			report "TEST_ERROR: interrupt status reported incorrectly";
 		end if;
 
 		--clear all
@@ -108,7 +108,7 @@ begin
 
 			wait until rising_edge(clk);
 			if intr_status_mask(i) /= '0' then
-				report "TEST_FAILURE: interrupt not cleared";
+				report "TEST_ERROR: interrupt not cleared";
 			end if;
 		end loop;
 		wait for clk_period;
@@ -135,19 +135,19 @@ begin
 
 		wait until rising_edge(clk);
 		if uart_intr /= '1' then
-			report "TEST_FAILURE: expected uart_intr to be raised";
+			report "TEST_ERROR: expected uart_intr to be raised";
 		elsif uart_fc_intr /= '1' then
-			report "TEST_FAILURE: expected uart_fc_intr to be raised";
+			report "TEST_ERROR: expected uart_fc_intr to be raised";
 		elsif uart_er_intr = '1' then
-			report "TEST_FAILURE: expected uart_er_intr to be low";
+			report "TEST_ERROR: expected uart_er_intr to be low";
 		elsif uart_rx_intr /= '1' then
-			report "TEST_FAILURE: expected uart_rx_intr to be raised";
+			report "TEST_ERROR: expected uart_rx_intr to be raised";
 		elsif uart_tx_intr = '1' then
-			report "TEST_FAILURE: expected uart_tx_intr to be low";
+			report "TEST_ERROR: expected uart_tx_intr to be low";
 		end if;
 
 		if intr_status_mask /= (intr_status_raw AND intr_mask) then
-			report "TEST_FAILURE: interrupt status reported incorrectly";
+			report "TEST_ERROR: interrupt status reported incorrectly";
 		end if;
 
 		--test raising interrupt while clearing
@@ -165,11 +165,11 @@ begin
 
 		wait until rising_edge(clk);
 		if intr_status_mask /= b"0111100" then
-			report "TEST_FAILURE: interrupt status not reported correctly";
+			report "TEST_ERROR: interrupt status not reported correctly";
 		end if;
 
 		if intr_status_mask /= (intr_status_raw AND intr_mask) then
-			report "TEST_FAILURE: interrupt status reported incorrectly";
+			report "TEST_ERROR: interrupt status reported incorrectly";
 		end if;
 
 		report "TEST_SUCCESS: end of test";

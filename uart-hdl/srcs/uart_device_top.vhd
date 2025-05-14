@@ -254,9 +254,9 @@ begin
 	);
 
 	-- transmitter instantiation
-	tx_enable <= uart_enable AND uart_tx_enable;
-	tx_start  <= not uart_ctsn AND not tx_fifo_empty when flow_ctrl_enable = '1' else
-		     not tx_fifo_empty;
+	tx_enable <= tx_cts AND uart_enable AND uart_tx_enable when flow_ctrl_enable = '1'
+		     else uart_enable AND uart_tx_enable;
+	tx_start  <= not tx_fifo_empty;
 	tx: entity work.uart_tx
 	Generic map(S_TICKS_PER_BAUD => 16, DATA_BITS_MAX => 8)
 	Port map(

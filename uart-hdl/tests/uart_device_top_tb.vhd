@@ -809,6 +809,94 @@ begin
 		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
 			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 
+		-- test flow control
+		-- enables flow control and transmitter, turns on RTS signal
+		write_data := x"0000001B";
+		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		if uart_rtsn /= '0' then
+			report "TEST_ERROR: RTS signal not set correctly";
+		end if;
+
+		-- enables flow control and transmitter, turns off RTS signal
+		write_data := x"00000013";
+		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		if uart_rtsn /= '1' then
+			report "TEST_ERROR: RTS signal not set correctly";
+		end if;
+
+		-- test cts
+		uart_ctsn <= '1';
+		data_bits := b"11";
+		parity_ctrl := b"00";
+		stop_bits := '0';
+		break_gen := '0';
+		write_data := (31 downto 6 => '0') &
+			      data_bits & stop_bits & parity_ctrl & break_gen;
+		write_axi(UARTLCR, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- set interrupt mask
+		write_data := (31 downto 7 => '0') & (6 downto 0 => '1');
+		write_axi(UARTIMASK, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- fifo should build up because cts is low
+		for i in 0 to 31 loop
+			write_data := (31 downto 8 => '0') &
+				      std_logic_vector(to_unsigned(i, test_data(0)'length));
+			write_axi(UARTDR, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		end loop;
+
+		-- check flag register
+		read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(3 downto 0) /= "0110" then
+			report "TEST_ERROR: UARTFR does not report correct tx fifo and flow control status";
+		end if;
+
+		uart_ctsn <= '0';
+		for i in 0 to 31 loop
+			receive_uart_byte(data_bits, parity_ctrl, stop_bits,
+					  std_logic_vector(to_unsigned(i, test_data(0)'length)),
+					  uart_tx);
+		end loop;
+
+		-- check cts interrupt
+		read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(6) /= '1' then
+			report "TEST_ERROR: UARTIRSTS does not report cts interrupt";
+		end if;
+		read_axi(UARTIMSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(6) /= '1' then
+			report "TEST_ERROR: UARTIMSTS does not report cts interrupt";
+		elsif uart_intr /= read_data(6) then
+			report "TEST_ERROR: uart_intr not driven correctly";
+		elsif uart_fc_intr /= read_data(6) then
+			report "TEST_ERROR: uart_fc_intr not driven correctly";
+		end if;
+
+		-- clear cts interrupt
+		write_data := x"00000040";
+		write_axi(UARTICLR, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		read_axi(UARTIRSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(6) /= '0' then
+			report "TEST_ERROR: interrupt not cleared";
+		end if;
+
+		-- check flag register
+		read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(3 downto 0) /= "1001" then
+			report "TEST_ERROR: UARTFR does not report correct tx fifo and flow control status";
+		end if;
+
 		report "TEST_SUCCESS: end of test";
 		finished <= '1';
 		wait;

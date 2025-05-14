@@ -288,7 +288,6 @@ begin
 		rx_break_err	   => break_error,
 		rx_overrun_err	   => overrun_error,
 		uart_ctsn	   => uart_ctsn,
-		uart_rtsn	   => uart_rtsn,
 		intr_mask	   => intr_mask,
 		intr_clear	   => intr_clear,
 		intr_clear_valid   => intr_clear_valid,

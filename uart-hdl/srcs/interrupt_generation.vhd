@@ -19,7 +19,6 @@ entity interrupt_generation is
 
 		-- flow control
 		uart_ctsn:	    in  std_logic; --active low
-		uart_rtsn:	    out std_logic; --active low
 
 		-- Interrupt register control
 		intr_mask:	    in  std_logic_vector(6 downto 0);
@@ -130,9 +129,6 @@ begin
 			end if;
 		end if;
 	end process;
-
-	--output logic
-	uart_rtsn <= rx_near_full_flag;
 
 	--interrupt status
 	intr_status_mask <= (fc_intr_reg AND intr_mask(6)) &

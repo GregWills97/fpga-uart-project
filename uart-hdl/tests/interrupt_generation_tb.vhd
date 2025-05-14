@@ -12,7 +12,7 @@ architecture Behavioral of interrupt_generation_tb is
 
 	signal rx_near_full_flag, tx_near_empty_flag: std_logic := '0';
 	signal rx_parity_err, rx_frame_err, rx_break_err, rx_overrun_err: std_logic := '0';
-	signal uart_ctsn, uart_rtsn: std_logic := '0';
+	signal uart_ctsn: std_logic := '0';
 
 	signal intr_mask, intr_clear: std_logic_vector(6 downto 0) := (others => '0');
 	signal intr_status_mask, intr_status_raw: std_logic_vector(6 downto 0) := (others => '0');
@@ -33,7 +33,6 @@ begin
 		rx_break_err	   => rx_break_err,
 		rx_overrun_err	   => rx_overrun_err,
 		uart_ctsn	   => uart_ctsn,
-		uart_rtsn	   => uart_rtsn,
 		intr_mask	   => intr_mask,
 		intr_clear	   => intr_clear,
 		intr_clear_valid   => intr_clear_valid,

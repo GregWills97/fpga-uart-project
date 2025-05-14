@@ -706,8 +706,66 @@ begin
 		end loop;
 		end loop;
 
-		--test break generation
-		data_bits := b"00";
+		-- test tx interrupt and flag registers
+		data_bits := b"11";
+		parity_ctrl := b"00";
+		stop_bits := '0';
+		break_gen := '0';
+		write_data := (31 downto 6 => '0') &
+			      data_bits & stop_bits & parity_ctrl & break_gen;
+		write_axi(UARTLCR, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- check flag register
+		read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(3 downto 1) /= "100" then
+			report "TEST_ERROR: UARTFR does not report correct tx fifo status";
+		end if;
+
+		for i in 0 to 31 loop
+			write_data := (31 downto 8 => '0') &
+				      std_logic_vector(to_unsigned(i, test_data(0)'length));
+			write_axi(UARTDR, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		end loop;
+
+		-- check flag register
+		read_axi(UARTFR, read_data, axi_error, clk, araddr, arvalid, arready,
+			 rdata, rresp, rvalid, rready);
+		if read_data(3 downto 1) /= "011" then
+			report "TEST_ERROR: UARTFR does not report correct tx fifo status";
+		end if;
+
+		-- set interrupt mask
+		write_data := x"0000007F";
+		write_axi(UARTIMASK, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- control register (enables uart and transmitter)
+		write_data := x"00000003";
+		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		for i in 0 to 31 loop
+			receive_uart_byte(data_bits, parity_ctrl, stop_bits,
+					  std_logic_vector(to_unsigned(i, test_data(0)'length)),
+					  uart_tx);
+			if i = 24 then
+				read_axi(UARTIMSTS, read_data, axi_error, clk, araddr, arvalid, arready,
+					 rdata, rresp, rvalid, rready);
+				if read_data(0) /= '1' then
+					report "TEST_ERROR: UARTIMSTS does not report tx interrupt";
+				elsif uart_intr /= read_data(0) then
+					report "TEST_ERROR: uart_intr not driven correctly";
+				elsif uart_tx_intr /= read_data(0) then
+					report "TEST_ERROR: uart_tx_intr not driven correctly";
+				end if;
+			end if;
+		end loop;
+
+		-- test break generation
+		data_bits := b"11";
 		parity_ctrl := b"00";
 		stop_bits := '0';
 		break_gen := '1';

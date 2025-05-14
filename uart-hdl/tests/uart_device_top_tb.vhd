@@ -203,6 +203,71 @@ architecture Behavioral of uart_device_top_tb is
 		end if;
 		tx_line <= '1';
 	end send_uart_byte;
+
+	procedure receive_uart_byte (
+			variable data_length: in std_logic_vector(1 downto 0);
+			variable par_ctrl: in std_logic_vector(1 downto 0);
+			variable num_stop: in std_logic;
+			data_in: in std_logic_vector(7 downto 0);
+			signal rx_line: in std_logic
+		) is
+			variable parity_bit: std_logic := '0';
+			variable num_bits: integer := 0;
+	begin
+		case data_length is
+			when "00" =>
+				num_bits := 5;
+			when "01" =>
+				num_bits := 6;
+			when "10" =>
+				num_bits := 7;
+			when others =>
+				num_bits := 8;
+		end case;
+
+		-- wait for start bit
+		wait until rising_edge(clk) AND rx_line = '0';
+
+		-- check data bits
+		for i in 0 to num_bits-1 loop
+			wait for baud_rate;
+			parity_bit := parity_bit XOR rx_line;
+			if rx_line /= data_in(i) then
+				report "TEST_ERROR: Tx is sending wrong data bit";
+			end if;
+		end loop;
+
+		-- check parity bit
+		case par_ctrl is
+			when "01" => -- odd parity
+				wait for baud_rate;
+				parity_bit := parity_bit XOR rx_line;
+				if parity_bit /= '1' then
+					report "TEST_ERROR: Tx is sending wrong parity bit";
+				end if;
+			when "10" => -- even parity
+				wait for baud_rate;
+				parity_bit := parity_bit XOR rx_line;
+				if parity_bit /= '0' then
+					report "TEST_ERROR: Tx is sending wrong parity bit";
+				end if;
+			when others =>
+				null;
+		end case;
+
+		-- check stop bit
+		wait for baud_rate;
+		if rx_line /= '1' then
+			report "TEST_ERROR: Tx is not sending stop bit";
+		end if;
+
+		if num_stop = '1' then
+			wait for baud_rate;
+			if rx_line /= '1' then report "TEST_ERROR: Tx is not sending second stop bit";
+			end if;
+		end if;
+		wait for baud_rate;
+	end receive_uart_byte;
 begin
 
 	uart_device_top_uut: entity work.uart_device_top
@@ -271,6 +336,7 @@ begin
 		variable data_bits, parity_ctrl: std_logic_vector(1 downto 0) := "00";
 		variable intr_mask: std_logic_vector(6 downto 0) := (others => '0');
 		variable intr_rx_err_mask: unsigned(3 downto 0) := (others => '0');
+
 	begin
 		wait until rising_edge(clk) AND rstn = '1';
 		wait for clk_period;
@@ -284,6 +350,7 @@ begin
 		write_axi(UARTFBRD, write_data, axi_error, clk, awaddr, awvalid, awready,
 			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
 
+		-- test RX
 		for i in 0 to 3 loop --test data loop
 		for j in 0 to 3 loop --data bit loop
 		for k in 0 to 2 loop --parity config loop
@@ -599,6 +666,45 @@ begin
 		write_data := x"00000000";
 		write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
 			  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+		-- test TX
+		for i in 0 to 3 loop --test data loop
+		for j in 0 to 3 loop --data bit loop
+		for k in 0 to 2 loop --parity config loop
+		for l in 0 to 1 loop --stop bit config loop
+			-- line control
+			break_gen := '0';
+			data_bits := std_logic_vector(to_unsigned(j, data_bits'length));
+			parity_ctrl := std_logic_vector(to_unsigned(k, data_bits'length));
+			if l = 0 then
+				stop_bits := '0';
+			else
+				stop_bits := '1';
+			end if;
+			write_data := (31 downto 6 => '0') &
+				      data_bits & stop_bits & parity_ctrl & break_gen;
+			write_axi(UARTLCR, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+			-- control register (enables uart and transmitter)
+			write_data := x"00000003";
+			write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+
+			-- start transaction and check for correctness
+			write_data := (31 downto 8 => '0') & test_data(i);
+			write_axi(UARTDR, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+			receive_uart_byte(data_bits, parity_ctrl, stop_bits, test_data(i), uart_tx);
+
+			-- control register (disables uart and receiver)
+			write_data := x"00000000";
+			write_axi(UARTCTRL, write_data, axi_error, clk, awaddr, awvalid, awready,
+				  wdata, wvalid, wready, wstrb, bresp, bvalid, bready);
+		end loop;
+		end loop;
+		end loop;
+		end loop;
 
 		report "TEST_SUCCESS: end of test";
 		finished <= '1';

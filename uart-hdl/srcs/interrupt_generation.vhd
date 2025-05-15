@@ -49,6 +49,8 @@ architecture Behavioral of interrupt_generation is
 	signal fe_intr_reg: std_logic := '0'; --frame error interrupt
 
 	signal fc_intr_reg: std_logic := '0'; --modem status interrupt
+
+	signal status_mask: std_logic_vector(6 downto 0);
 begin
 
 	process(clk)
@@ -131,14 +133,15 @@ begin
 	end process;
 
 	--interrupt status
-	intr_status_mask <= (fc_intr_reg AND intr_mask(6)) &
-			    (oe_intr_reg AND intr_mask(5)) &
-			    (be_intr_reg AND intr_mask(4)) &
-			    (pe_intr_reg AND intr_mask(3)) &
-			    (fe_intr_reg AND intr_mask(2)) &
-			    (rx_intr_reg AND intr_mask(1)) &
-			    (tx_intr_reg AND intr_mask(0));
+	status_mask <= (fc_intr_reg AND intr_mask(6)) &
+		       (oe_intr_reg AND intr_mask(5)) &
+		       (be_intr_reg AND intr_mask(4)) &
+		       (pe_intr_reg AND intr_mask(3)) &
+		       (fe_intr_reg AND intr_mask(2)) &
+		       (rx_intr_reg AND intr_mask(1)) &
+		       (tx_intr_reg AND intr_mask(0));
 
+	intr_status_mask <= status_mask;
 	intr_status_raw  <= fc_intr_reg &
 			    oe_intr_reg &
 			    be_intr_reg &
@@ -148,22 +151,22 @@ begin
 			    tx_intr_reg;
 
 	--interrupt lines
-	uart_tx_intr <= intr_status_mask(0);
-	uart_rx_intr <= intr_status_mask(1);
+	uart_tx_intr <= status_mask(0);
+	uart_rx_intr <= status_mask(1);
 
-	uart_er_intr <= intr_status_mask(2) OR
-			intr_status_mask(3) OR
-			intr_status_mask(4) OR
-			intr_status_mask(5);
+	uart_er_intr <= status_mask(2) OR
+			status_mask(3) OR
+			status_mask(4) OR
+			status_mask(5);
 
-	uart_fc_intr <= intr_status_mask(6);
+	uart_fc_intr <= status_mask(6);
 
-	uart_intr    <= intr_status_mask(6) OR
-			intr_status_mask(5) OR
-			intr_status_mask(4) OR
-			intr_status_mask(3) OR
-			intr_status_mask(2) OR
-			intr_status_mask(1) OR
-			intr_status_mask(0);
+	uart_intr    <= status_mask(6) OR
+			status_mask(5) OR
+			status_mask(4) OR
+			status_mask(3) OR
+			status_mask(2) OR
+			status_mask(1) OR
+			status_mask(0);
 
 end Behavioral;

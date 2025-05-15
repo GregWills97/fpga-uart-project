@@ -44,8 +44,14 @@ $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf): $(DOCDIR)/$(DOCNAME)
 
 pdfdocs: create_doc $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf)
 
+xsa:
+	make -C $(PWD)/vivado all
+
 all: $(MODULES)
 run_all: $(addsuffix _run, $(MODULES))
+
 clean:
 	rm -rf $(DOCBUILD)
 	rm -rf $(WORKDIR)
+	rm -f *.xsa
+	make -C $(PWD)/vivado clean

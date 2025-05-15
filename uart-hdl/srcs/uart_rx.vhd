@@ -52,7 +52,6 @@ begin
 			p_reg	  <= '0';
 			ferr_reg  <= '0';
 			berr_reg  <= '0';
-			num_dbits <= 0;
 		elsif rising_edge(clk) then
 			state_reg <= state_next;
 			s_reg	  <= s_next;

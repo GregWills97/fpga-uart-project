@@ -70,6 +70,10 @@ apply_bd_automation -rule xilinx.com:bd_rule:axi4 \
 			    Master {/processing_system7_0/M_AXI_GP0} Slave {/${ip_name}_0/S00_AXI} \
 			    ddr_seg {Auto} intc_ip {New AXI SmartConnect} master_apm {0}} \
 		    [get_bd_intf_pins ${ip_name}_0/S00_AXI]
+
+# set clock to 125 Mhz
+set_property CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ {125} [get_bd_cells processing_system7_0]
+
 # reset
 connect_bd_net [get_bd_pins ${ip_name}_0/uart_rstn] [get_bd_pins rst_ps7_0_50M/peripheral_aresetn]
 
@@ -88,7 +92,6 @@ foreach io $io_list {
 # Validate and generate block design
 regenerate_bd_layout
 validate_bd_design
-
 set proj_dir [pwd]/$project_name
 set cache_path $proj_dir/${project_name}.cache
 set src_path $proj_dir/${project_name}.srcs

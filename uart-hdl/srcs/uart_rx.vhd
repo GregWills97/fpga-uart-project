@@ -35,6 +35,10 @@ architecture Behavioral of uart_rx is
 	signal ferr_reg, ferr_next: std_logic := '0';				--holds framing error bit
 	signal berr_reg, berr_next: std_logic := '0';				--holds break error bit
 
+	-- line control
+	signal num_dbits, num_stop_ticks: integer := 0;
+	type parity_type is (none, even, odd);
+	signal parity_setting: parity_type := none;
 begin
 
 	--state and register assignments
@@ -48,6 +52,7 @@ begin
 			p_reg	  <= '0';
 			ferr_reg  <= '0';
 			berr_reg  <= '0';
+			num_dbits <= 0;
 		elsif rising_edge(clk) then
 			state_reg <= state_next;
 			s_reg	  <= s_next;
@@ -56,16 +61,42 @@ begin
 			p_reg	  <= p_next;
 			ferr_reg  <= ferr_next;
 			berr_reg  <= berr_next;
+
+			-- lock in line control on start
+			if state_reg = start then
+				case data_bits is
+					when "00" =>
+						num_dbits <= 5;
+					when "01" =>
+						num_dbits <= 6;
+					when "10" =>
+						num_dbits <= 7;
+					when "11" =>
+						num_dbits <= 8;
+					when others =>
+						num_dbits <= 8;
+				end case;
+
+				if (parity_ctrl = "01") then
+					parity_setting <= odd;
+				elsif (parity_ctrl = "10") then
+					parity_setting <= even;
+				else
+					parity_setting <= none;
+				end if;
+
+				if stop_bits = '1' then
+					num_stop_ticks <= S_TICKS_PER_BAUD * 2;
+				else
+					num_stop_ticks <= S_TICKS_PER_BAUD;
+				end if;
+			end if;
 		end if;
 	end process;
 
 	--next state logic
 	process(state_reg, s_reg, n_reg, b_reg, p_reg, ferr_reg, berr_reg,
-		data_bits, parity_ctrl, stop_bits, s_tick, en, rx)
-		type parity_type is (none, even, odd);
-		variable parity_setting: parity_type := none;
-		variable num_stop_ticks: integer := 0;
-		variable num_dbits: integer := 0;
+		num_dbits, num_stop_ticks, parity_setting, stop_bits, s_tick, en, rx)
 	begin
 		--these assignments are to trigger the sensitivity list
 		--state_next gets its actual value below
@@ -101,37 +132,7 @@ begin
 						b_next	   <= (others => '0');
 						ferr_next  <= '0';
 						berr_next  <= '0';
-
-						--Lock in configuration for receiving
-						case data_bits is
-							when "00" =>
-								num_dbits := 5;
-							when "01" =>
-								num_dbits := 6;
-							when "10" =>
-								num_dbits := 7;
-							when "11" =>
-								num_dbits := 8;
-							when others =>
-								num_dbits := 8;
-						end case;
-
-						if (parity_ctrl = "01") then
-							parity_setting := odd;
-						elsif (parity_ctrl = "10") then
-							parity_setting := even;
-						else
-							parity_setting := none;
-						end if;
-
 						p_next <= '0';
-
-						--Check stop config
-						if stop_bits = '1' then
-							num_stop_ticks := S_TICKS_PER_BAUD * 2;
-						else
-							num_stop_ticks := S_TICKS_PER_BAUD;
-						end if;
 					else
 						s_next <= s_reg + 1;
 					end if;

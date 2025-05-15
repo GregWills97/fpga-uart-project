@@ -33,6 +33,10 @@ architecture Behavioral of uart_tx is
 	signal tx_reg, tx_next: std_logic := '1';				--holds output
 	signal p_reg, p_next: std_logic := '0';					--holds parity
 
+	-- line control
+	signal num_dbits, num_stop_ticks: integer := 0;
+	type parity_type is (none, even, odd);
+	signal parity_setting: parity_type := none;
 begin
 
 	--state and data register assignments
@@ -51,16 +55,42 @@ begin
 			b_reg	  <= b_next;
 			p_reg	  <= p_next;
 			tx_reg	  <= tx_next;
+
+			-- lock in line control on start
+			if state_reg = start then
+				case data_bits is
+					when "00" =>
+						num_dbits <= 5;
+					when "01" =>
+						num_dbits <= 6;
+					when "10" =>
+						num_dbits <= 7;
+					when "11" =>
+						num_dbits <= 8;
+					when others =>
+						num_dbits <= 8;
+				end case;
+
+				if (parity_ctrl = "01") then
+					parity_setting <= odd;
+				elsif (parity_ctrl = "10") then
+					parity_setting <= even;
+				else
+					parity_setting <= none;
+				end if;
+
+				if stop_bits = '1' then
+					num_stop_ticks <= S_TICKS_PER_BAUD * 2;
+				else
+					num_stop_ticks <= S_TICKS_PER_BAUD;
+				end if;
+			end if;
 		end if;
 	end process;
 
 	--next state logic;
 	process(state_reg, s_reg, n_reg, b_reg, p_reg, s_tick, tx_reg, tx_start, en,
-		data_bits, parity_ctrl, stop_bits, data_in)
-		type parity_type is (none, even, odd);
-		variable parity_setting: parity_type := none;
-		variable num_stop_ticks: integer := 0;
-		variable num_dbits: integer := 0;
+		num_dbits, num_stop_ticks, parity_setting, data_in)
 	begin
 		state_next   <= state_reg;
 		s_next	     <= s_reg;
@@ -89,35 +119,6 @@ begin
 						n_next <= (others => '0');
 						b_next <= data_in;
 						p_next <= '0';
-
-						--lock in configuration
-						case data_bits is
-							when "00" =>
-								num_dbits := 5;
-							when "01" =>
-								num_dbits := 6;
-							when "10" =>
-								num_dbits := 7;
-							when "11" =>
-								num_dbits := 8;
-							when others =>
-								num_dbits := 8;
-						end case;
-
-						if (parity_ctrl = "01") then
-							parity_setting := odd;
-						elsif (parity_ctrl = "10") then
-							parity_setting := even;
-						else
-							parity_setting := none;
-						end if;
-
-						--Check stop config
-						if stop_bits = '1' then
-							num_stop_ticks := S_TICKS_PER_BAUD * 2;
-						else
-							num_stop_ticks := S_TICKS_PER_BAUD;
-						end if;
 					else
 						s_next <= s_reg + 1;
 					end if;

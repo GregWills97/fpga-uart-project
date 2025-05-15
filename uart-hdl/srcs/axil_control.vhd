@@ -226,6 +226,7 @@ begin
 	process(S_AXI_AWVALID, axil_wdata, S_AXI_WVALID, axil_wstrb, axil_write_ready,
 		S_AXI_BREADY, axil_bvalid, ibrd_reg, fbrd_reg, lcr_reg, ctrl_reg, imask_reg)
 	begin
+		axil_bvalid_next <= axil_bvalid;
 		if axil_write_ready = '1' then
 			axil_bvalid_next <= '1';
 		elsif S_AXI_BREADY = '1' then
@@ -321,8 +322,9 @@ begin
 	end process;
 
 	--read control next state logic
-	process(axil_read_ready, S_AXI_RREADY)
+	process(axil_rvalid, axil_read_ready, S_AXI_RREADY)
 	begin
+		axil_rvalid_next <= axil_rvalid;
 		if axil_read_ready = '1' then
 			axil_rvalid_next <= '1';
 		elsif S_AXI_RREADY = '1' then

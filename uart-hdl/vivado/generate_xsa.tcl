@@ -3,6 +3,8 @@ set project_name	"uart_device_proj"
 set project_part	"xc7z010clg400-1"
 set project_board	"digilentinc.com:zybo-z7-10:part0:1.2"
 
+set jobs [expr {[exec nproc] / 2}]
+
 create_project $project_name [pwd]/$project_name -part $project_part
 set_property board_part $project_board [current_project]
 set_property target_language VHDL [current_project]
@@ -108,7 +110,7 @@ launch_runs \
 	${bd}_axi_smc_0_synth_1 \
 	${bd}_processing_system7_0_0_synth_1 \
 	${bd}_rst_ps7_0_50M_0_synth_1 \
-	${bd}_${ip_name}_0_0_synth_1 -jobs 12
+	${bd}_${ip_name}_0_0_synth_1 -jobs $jobs
 export_simulation \
 	-lib_map_path [list \
 		{modelsim=$cache_path/compile_simlib/modelsim} \
@@ -132,9 +134,9 @@ add_files -norecurse $wrapper_path
 create_ip_run [get_files -of_objects [get_fileset sources_1] $bd_path]
 synth_design -top uart_block_design_1_wrapper -part xc7z010clg400-1 -lint
 
-launch_runs synth_1 -jobs 12
+launch_runs synth_1 -jobs $jobs
 wait_on_run synth_1
-launch_runs impl_1 -to_step write_bitstream -jobs 12
+launch_runs impl_1 -to_step write_bitstream -jobs $jobs
 wait_on_run impl_1
 
 # Export to XSA

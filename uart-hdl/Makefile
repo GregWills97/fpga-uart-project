@@ -36,6 +36,9 @@ $(WORKDIR)/%.vcd: $(WORKDIR)/%_tb
 
 $(MODULES): %: $(WORKDIR)/%_tb
 
+all: $(MODULES)
+run_all: $(addsuffix _run, $(MODULES))
+
 create_doc:
 	@mkdir -p $(DOCBUILD)
 
@@ -46,9 +49,6 @@ pdfdocs: create_doc $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf)
 
 xsa:
 	@make -C $(PWD)/vivado all
-
-all: $(MODULES)
-run_all: $(addsuffix _run, $(MODULES))
 
 clean:
 	@rm -rf $(DOCBUILD)

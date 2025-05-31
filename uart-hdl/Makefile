@@ -15,7 +15,7 @@ SRCS = $(addprefix srcs/,$(addsuffix .vhd,$(MODULES)))
 TESTS = $(addprefix tests/,$(addsuffix _tb.vhd,$(MODULES)))
 
 $(WORKFILE): $(SRCS) $(TESTS)
-	mkdir -p $(WORKDIR)
+	@mkdir -p $(WORKDIR)
 	$(GHDL) -a $(FLAGS) --work=work --workdir='$(WORKDIR)' $^
 
 analyze: $(WORKFILE)
@@ -37,7 +37,7 @@ $(WORKDIR)/%.vcd: $(WORKDIR)/%_tb
 $(MODULES): %: $(WORKDIR)/%_tb
 
 create_doc:
-	mkdir -p $(DOCBUILD)
+	@mkdir -p $(DOCBUILD)
 
 $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf): $(DOCDIR)/$(DOCNAME)
 	$(TEX) $(TEXOPTS) $^
@@ -45,13 +45,13 @@ $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf): $(DOCDIR)/$(DOCNAME)
 pdfdocs: create_doc $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf)
 
 xsa:
-	make -C $(PWD)/vivado all
+	@make -C $(PWD)/vivado all
 
 all: $(MODULES)
 run_all: $(addsuffix _run, $(MODULES))
 
 clean:
-	rm -rf $(DOCBUILD)
-	rm -rf $(WORKDIR)
-	rm -f *.xsa
-	make -C $(PWD)/vivado clean
+	@rm -rf $(DOCBUILD)
+	@rm -rf $(WORKDIR)
+	@rm -f *.xsa
+	@make -C $(PWD)/vivado clean

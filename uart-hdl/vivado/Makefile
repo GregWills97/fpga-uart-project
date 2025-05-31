@@ -10,4 +10,4 @@ xsa: check_tools
 all: xsa
 
 clean:
-	rm -rf ip_repo *_proj vivado* *.log
+	@rm -rf ip_repo *_proj vivado* *.log

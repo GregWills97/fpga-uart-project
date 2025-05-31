@@ -132,7 +132,7 @@ add_files -norecurse $wrapper_path
 
 # Run Linter, synthesis and implementation, then write bitstream
 create_ip_run [get_files -of_objects [get_fileset sources_1] $bd_path]
-synth_design -top uart_block_design_1_wrapper -part xc7z010clg400-1 -lint
+synth_design -top uart_block_design_1_wrapper -part $project_part -lint
 
 launch_runs synth_1 -jobs $jobs
 wait_on_run synth_1

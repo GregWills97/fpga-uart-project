@@ -4,6 +4,9 @@ FLAGS = -O3 --std=08 -fexplicit -Wall
 WORKDIR= $(PWD)/work
 WORKFILE = $(WORKDIR)/work-obj93.cf
 
+VIVADO = vivado
+VIVADO_PATH = $(shell which $(VIVADO))
+
 TEX = pdflatex
 TEXOPTS = -output-dir=$(DOCBUILD)
 DOCNAME = uart_trm.tex
@@ -39,6 +42,12 @@ $(MODULES): %: $(WORKDIR)/%_tb
 all: $(MODULES)
 run_all: $(addsuffix _run, $(MODULES))
 
+check_tools:
+	@if [ -z $(strip $(VIVADO_PATH)) ]; then echo "Must source Vivado tools for bitstream"; exit 1; fi
+
+xsa: check_tools
+	$(VIVADO) -mode batch -source generate_xsa.tcl -log run.log
+
 create_doc:
 	@mkdir -p $(DOCBUILD)
 
@@ -47,11 +56,8 @@ $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf): $(DOCDIR)/$(DOCNAME)
 
 pdfdocs: create_doc $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf)
 
-xsa:
-	@make -C $(PWD)/vivado all
-
 clean:
 	@rm -rf $(DOCBUILD)
 	@rm -rf $(WORKDIR)
-	@rm -f *.xsa
-	@make -C $(PWD)/vivado clean
+	@rm -rf vivado_prj .Xil
+	@rm -f *.xsa *.log *.jou

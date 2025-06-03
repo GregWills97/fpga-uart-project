@@ -1,11 +1,12 @@
 # Create vivado project
+set project_root	[pwd]/vivado_prj
 set project_name	"uart_device_proj"
 set project_part	"xc7z010clg400-1"
 set project_board	"digilentinc.com:zybo-z7-10:part0:1.2"
 
 set jobs [expr {[exec nproc] / 2}]
 
-create_project $project_name [pwd]/$project_name -part $project_part
+create_project $project_name $project_root/$project_name -part $project_part
 set_property board_part $project_board [current_project]
 set_property target_language VHDL [current_project]
 
@@ -16,11 +17,11 @@ set ip_desc	"AXI programmable UART device"
 set ip_vendor	"greg.org"
 set ip_library	"greg"
 set ip_version	"1.0"
-set ip_dir	"[pwd]/ip_repo/$ip_name"
-set sources	[pwd]/../srcs
+set ip_dir	"$project_root/ip_repo/$ip_name"
+set sources	[pwd]/srcs
 
 # create temporary IP project
-create_project $ip_proj [pwd]/$ip_proj -part $project_part
+create_project $ip_proj $project_root/$ip_proj -part $project_part
 add_files $sources
 update_compile_order -fileset sources_1
 
@@ -39,11 +40,11 @@ close_project
 
 ## Add IP repo to curent project
 current_project $project_name
-set_property ip_repo_paths [file normalize "[pwd]/ip_repo"] [current_project]
+set_property ip_repo_paths [file normalize "$project_root/ip_repo"] [current_project]
 update_ip_catalog -rebuild
 
 # Add constraint file
-add_files -fileset constrs_1 -norecurse [pwd]/Zybo-Master.xdc
+add_files -fileset constrs_1 -norecurse [pwd]/zybo_uart.xdc
 
 # Create block design
 set bd "uart_block_design_1"
@@ -92,14 +93,15 @@ foreach io $io_list {
 }
 
 # Validate and generate block design
-regenerate_bd_layout
-validate_bd_design
-set proj_dir [pwd]/$project_name
+set proj_dir $project_root/$project_name
 set cache_path $proj_dir/${project_name}.cache
 set src_path $proj_dir/${project_name}.srcs
 set bd_path $src_path/sources_1/bd/$bd/${bd}.bd
 set ip_path $proj_dir/${project_name}.ip_user_files
 set wrapper_path $proj_dir/${project_name}.gen/sources_1/bd/${bd}/hdl/${bd}_wrapper.vhd
+
+regenerate_bd_layout
+validate_bd_design
 generate_target all [get_files $bd_path]
 catch { config_ip_cache -export [get_ips -all ${bd}_${ip_name}_0_0] }
 catch { config_ip_cache -export [get_ips -all ${bd}_axi_smc_0] }
@@ -140,4 +142,4 @@ launch_runs impl_1 -to_step write_bitstream -jobs $jobs
 wait_on_run impl_1
 
 # Export to XSA
-write_hw_platform -fixed -include_bit -force -file [pwd]/../system.xsa
+write_hw_platform -fixed -include_bit -force -file [pwd]/system.xsa

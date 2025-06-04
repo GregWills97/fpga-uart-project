@@ -1,5 +1,5 @@
 # Create vivado project
-set project_root	[pwd]/vivado_prj
+set project_root	[pwd]/vivado.prj
 set project_name	"uart_device_proj"
 set project_part	"xc7z010clg400-1"
 set project_board	"digilentinc.com:zybo-z7-10:part0:1.2"

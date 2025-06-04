@@ -59,5 +59,5 @@ pdfdocs: create_doc $(DOCBUILD)/$(DOCNAME:%.tex=%.pdf)
 clean:
 	@rm -rf $(DOCBUILD)
 	@rm -rf $(WORKDIR)
-	@rm -rf vivado_prj .Xil
+	@rm -rf vivado.prj .Xil
 	@rm -f *.xsa *.log *.jou

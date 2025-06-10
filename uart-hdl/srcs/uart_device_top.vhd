@@ -282,6 +282,7 @@ begin
 	Port map(
 		clk		   => clk,
 		rst		   => rst,
+		enable		   => uart_enable,
 		tx_near_empty_flag => tx_fifo_near_empty,
 		rx_near_full_flag  => rx_fifo_near_full,
 		rx_parity_err	   => parity_error,

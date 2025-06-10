@@ -8,7 +8,7 @@ end interrupt_generation_tb;
 architecture Behavioral of interrupt_generation_tb is
 
 	constant clk_period: time := 8 ns; --125Mhz clk
-	signal clk, rst, finished: std_logic := '0';
+	signal clk, rst, enable, finished: std_logic := '0';
 
 	signal rx_near_full_flag, tx_near_empty_flag: std_logic := '0';
 	signal rx_parity_err, rx_frame_err, rx_break_err, rx_overrun_err: std_logic := '0';
@@ -26,6 +26,7 @@ begin
 	Port map(
 		clk		   => clk,
 		rst		   => rst,
+		enable		   => enable,
 		tx_near_empty_flag => tx_near_empty_flag,
 		rx_near_full_flag  => rx_near_full_flag,
 		rx_parity_err	   => rx_parity_err,
@@ -56,6 +57,7 @@ begin
 
 	--clk
 	clk <= not clk after clk_period/2 when finished /= '1' else '0';
+	enable <= '1';
 
 	process
 	begin

@@ -6,6 +6,7 @@ entity interrupt_generation is
 	Port(
 		clk:		    in  std_logic;
 		rst:		    in  std_logic;
+		enable:		    in  std_logic;
 
 		-- fifo status
 		tx_near_empty_flag: in  std_logic;
@@ -68,66 +69,68 @@ begin
 				fe_intr_reg <= '0';
 				fc_intr_reg <= '0';
 			else
-				-- tx interrupt
-				if intr_clear_valid = '1' AND intr_clear(0) = '1' then
-					tx_intr_reg <= '0';
-				else
-					tx_intr_reg <= tx_near_empty_flag;
-				end if;
-
-				-- rx interrupt
-				if intr_clear_valid = '1' AND intr_clear(1) = '1' then
-					rx_intr_reg <= '0';
-				else
-					rx_intr_reg <= rx_near_full_flag;
-				end if;
-
-				-- frame error interrupt
-				if intr_clear_valid = '1' AND intr_clear(2) = '1' then
-					fe_intr_reg <= '0';
-				else
-					if rx_frame_err = '1' then
-						fe_intr_reg <= '1';
+				if enable = '1' then
+					-- tx interrupt
+					if intr_clear_valid = '1' AND intr_clear(0) = '1' then
+						tx_intr_reg <= '0';
+					else
+						tx_intr_reg <= tx_near_empty_flag;
 					end if;
-				end if;
 
-				-- parity error interrupt
-				if intr_clear_valid = '1' AND intr_clear(3) = '1' then
-					pe_intr_reg <= '0';
-				else
-					if rx_parity_err = '1' then
-						pe_intr_reg <= '1';
+					-- rx interrupt
+					if intr_clear_valid = '1' AND intr_clear(1) = '1' then
+						rx_intr_reg <= '0';
+					else
+						rx_intr_reg <= rx_near_full_flag;
 					end if;
-				end if;
 
-				-- break error interrupt
-				if intr_clear_valid = '1' AND intr_clear(4) = '1' then
-					be_intr_reg <= '0';
-				else
-					if rx_break_err = '1' then
-						be_intr_reg <= '1';
+					-- frame error interrupt
+					if intr_clear_valid = '1' AND intr_clear(2) = '1' then
+						fe_intr_reg <= '0';
+					else
+						if rx_frame_err = '1' then
+							fe_intr_reg <= '1';
+						end if;
 					end if;
-				end if;
 
-				-- overrun error interrupt
-				if intr_clear_valid = '1' AND intr_clear(5) = '1' then
-					oe_intr_reg <= '0';
-				else
-					if rx_overrun_err = '1' then
-						oe_intr_reg <= '1';
+					-- parity error interrupt
+					if intr_clear_valid = '1' AND intr_clear(3) = '1' then
+						pe_intr_reg <= '0';
+					else
+						if rx_parity_err = '1' then
+							pe_intr_reg <= '1';
+						end if;
 					end if;
-				end if;
 
-				-- flow control interrupt
-				if intr_clear_valid = '1' AND intr_clear(6) = '1' then
-					fc_intr_reg <= '0';
-				else
-					if ctsn_reg /= uart_ctsn then
-						fc_intr_reg <= '1';
+					-- break error interrupt
+					if intr_clear_valid = '1' AND intr_clear(4) = '1' then
+						be_intr_reg <= '0';
+					else
+						if rx_break_err = '1' then
+							be_intr_reg <= '1';
+						end if;
 					end if;
+
+					-- overrun error interrupt
+					if intr_clear_valid = '1' AND intr_clear(5) = '1' then
+						oe_intr_reg <= '0';
+					else
+						if rx_overrun_err = '1' then
+							oe_intr_reg <= '1';
+						end if;
+					end if;
+
+					-- flow control interrupt
+					if intr_clear_valid = '1' AND intr_clear(6) = '1' then
+						fc_intr_reg <= '0';
+					else
+						if ctsn_reg /= uart_ctsn then
+							fc_intr_reg <= '1';
+						end if;
+					end if;
+					-- store ctsn signal to check for change
+					ctsn_reg <= uart_ctsn;
 				end if;
-				-- store ctsn signal to check for change
-				ctsn_reg <= uart_ctsn;
 			end if;
 		end if;
 	end process;
